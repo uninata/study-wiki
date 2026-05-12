@@ -1,0 +1,12 @@
+# Raw source materials (lecture PDFs, notebooks, etc.) — copyrighted course content
+raw/
+
+# Obsidian internal config
+.obsidian/
+
+# macOS
+.DS_Store
+
+# Copilot / editor artifacts
+copilot/
+exam prep/
