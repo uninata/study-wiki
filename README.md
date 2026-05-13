@@ -67,7 +67,14 @@ Pages contain LaTeX math (`$inline$` and `$$display$$`). Obsidian renders these 
 
 ## Where are the source materials?
 
-The `raw/` folder containing lecture PDFs, seminar solutions, and notebooks is **git-ignored** because these are copyrighted course materials. The wiki pages cite their sources by filename (e.g., `(source: ml-fundamentals/ls26_lecture_erm.pdf)`) so you can trace any claim back to the original document if you have access to the course materials.
+The `raw/` folder containing lecture PDFs, seminar solutions, and notebooks is **not included in this repository** — these are copyrighted course materials available on [CourseWare](https://cw.fel.cvut.cz/). The wiki pages cite their sources by filename (e.g., `(source: ml-fundamentals/ls26_lecture_erm.pdf)`) so you can trace any claim back to the original document.
+
+If you want to use the ingest workflow yourself, create the `raw/` folder manually with per-course subdirectories and place the PDFs there:
+
+```bash
+mkdir -p raw/{ml-fundamentals,ml-methods,computer-vision,stai,nlp,deep-learning,cybersecurity,programming-for-engineers,pattern-recognition}
+# Then download the relevant PDFs from CourseWare into each folder
+```
 
 ## How it's maintained
 
