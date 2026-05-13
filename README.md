@@ -1,4 +1,4 @@
-# LLM Wiki — CVUT Coursework Knowledge Base
+# LLM Wiki — CTU Coursework Knowledge Base
 
 A personal, AI-maintained knowledge base for coursework at the Czech Technical University in Prague (CVUT), built on [Andrej Karpathy's LLM Wiki pattern](https://karpathy.ai/blog/wiki.html).
 
