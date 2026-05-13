@@ -76,6 +76,57 @@ mkdir -p raw/{ml-fundamentals,ml-methods,computer-vision,stai,nlp,deep-learning,
 # Then download the relevant PDFs from CourseWare into each folder
 ```
 
+## Connecting an LLM
+
+The wiki is designed to be maintained by an LLM that follows `CLAUDE.md` as its instruction set. There are several ways to connect one:
+
+### Option 1: Claude Code (CLI)
+
+The original setup. [Claude Code](https://docs.anthropic.com/en/docs/claude-code) automatically reads `CLAUDE.md` when you open the project directory:
+
+```bash
+cd llm-wiki
+claude
+```
+
+Then just ask it to ingest, query, or lint — it knows the workflows.
+
+### Option 2: Obsidian Copilot Plugin
+
+[Obsidian Copilot](https://github.com/logancyang/obsidian-copilot) lets you chat with an LLM directly inside Obsidian, with access to your vault contents.
+
+**Setup**:
+1. Install the **Copilot** community plugin in Obsidian (Settings → Community plugins → Browse → "Copilot")
+2. Configure a model provider (see local/remote options below)
+3. Paste the contents of `CLAUDE.md` into the plugin's **system prompt** field (Settings → Copilot → System Prompt) so the LLM follows the wiki conventions
+4. Chat with the LLM in Obsidian's side panel — it can read and reference your wiki pages
+
+### Option 3: Any LLM with file access
+
+Any LLM tool that can read local files works. Just make sure it has access to `CLAUDE.md` as its system instructions.
+
+### Local vs Remote LLM
+
+| | Local | Remote |
+|--|-------|--------|
+| **What** | Model runs on your machine | Model runs on a provider's servers |
+| **Examples** | Ollama, LM Studio, llama.cpp | OpenAI API, Anthropic API, Google AI |
+| **Privacy** | Data never leaves your machine | Data sent to provider |
+| **Hardware** | Needs GPU (8GB+ VRAM for good models) | Just needs internet |
+| **Quality** | Smaller models, may struggle with LaTeX/math | Best models available |
+
+**Setting up a local model (Ollama)**:
+1. Install [Ollama](https://ollama.ai): `brew install ollama`
+2. Pull a model: `ollama pull llama3.1` (or `mistral`, `qwen2.5`, etc.)
+3. Ollama runs a local API at `http://localhost:11434`
+4. Point your Obsidian Copilot or other tool to this endpoint
+
+**Setting up a remote model**:
+1. Get an API key from your provider ([Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/), etc.)
+2. Enter the API key in your tool's settings (e.g., Obsidian Copilot → Model Provider)
+
+**Recommendation**: For wiki maintenance (ingest, cross-linking, LaTeX math), use a strong remote model (Claude, GPT-4). For simple queries over existing pages, a local model works fine.
+
 ## How it's maintained
 
 All wiki operations are performed by Claude Code following the `CLAUDE.md` schema:
