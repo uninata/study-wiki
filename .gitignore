@@ -1,5 +1,4 @@
 # Raw source materials (lecture PDFs, notebooks, etc.) — copyrighted course content
-raw/
 
 # Obsidian internal config
 .obsidian/
@@ -10,3 +9,4 @@ raw/
 # Copilot / editor artifacts
 copilot/
 exam prep/
+.idea/

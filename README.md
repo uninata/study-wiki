@@ -65,20 +65,13 @@ This wiki is designed to be browsed in [Obsidian](https://obsidian.md), a free M
 
 Pages contain LaTeX math (`$inline$` and `$$display$$`). Obsidian renders these natively — no plugins needed.
 
-## Where are the source materials?
+## Source Materials
 
-The `raw/` folder containing lecture PDFs, seminar solutions, and notebooks is **not included in this repository** — these are copyrighted course materials available on [CourseWare](https://cw.fel.cvut.cz/). The wiki pages cite their sources by filename (e.g., `(source: ml-fundamentals/ls26_lecture_erm.pdf)`) so you can trace any claim back to the original document.
-
-If you want to use the ingest workflow yourself, create the `raw/` folder manually with per-course subdirectories and place the PDFs there:
-
-```bash
-mkdir -p raw/{ml-fundamentals,ml-methods,computer-vision,stai,nlp,deep-learning,cybersecurity,programming-for-engineers,pattern-recognition}
-# Then download the relevant PDFs from CourseWare into each folder
-```
+The `raw/` folder containing lecture PDFs, seminar solutions, and notebooks is **included in this repository**. Wiki pages cite their sources by filename (e.g., `(source: ml-fundamentals/ls26_lecture_erm.pdf)`) so you can trace any claim back to the original document.
 
 ## Connecting an LLM
 
-The wiki is designed to be maintained by an LLM that follows `CLAUDE.md` as its instruction set. There are several ways to connect one:
+The wiki is designed to be maintained by an LLM that follows an instruction file as its system prompt. `CLAUDE.md` is used by Claude Code; `AGENTS.md` is a model-agnostic version for use with other LLMs (e.g., GPT-4, Gemini, local models). There are several ways to connect one:
 
 ### Option 1: Claude Code (CLI)
 
