@@ -4,15 +4,17 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_svm.pdf, ls26_seminar_kernels.pdf
+**Sources**: ls26_lecture_svm.pdf, ls26_seminar_kernels.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-16
 
 ---
 
 ## Motivation: Why Maximum Margin?
 
 For linearly separable data, infinitely many linear classifiers achieve zero training error. ERM alone cannot distinguish them. The **maximum margin classifier** selects the one with the largest distance to the nearest training point, which is theoretically justified by [[vc-dimension#structural-risk-minimization-srm|Structural Risk Minimization]] (source: ml-fundamentals/ls26_lecture_svm.pdf).
+
+The textbook emphasizes that SVMs add a second inductive bias beyond zero training error: prefer separators that remain correct under small perturbations of the examples (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). This margin bias can lower sample complexity in high-dimensional feature spaces even when the VC dimension of all halfspaces is large (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## Hard-Margin SVM
 
@@ -55,6 +57,8 @@ where:
 
 The hinge loss $\psi(y, t) = \max\{0, 1 - yt\}$ is a **convex upper bound** on the 0/1 loss: $\mathbb{1}[y \neq \text{sign}(t)] \leq \max\{0, 1 - yt\}$.
 
+This regularized formulation is not just an optimization trick: it is a way to trade empirical hinge loss against the norm of $\mathbf{w}$, so the learned classifier is biased toward low-norm, large-margin separators (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). In the homogeneous case with $\|\mathbf{x}\|\leq \rho$, textbook bounds depend on quantities such as $\rho^2\|\mathbf{w}\|^2/m$ rather than directly on the ambient dimension (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Dual Formulation
 
 The Lagrangian dual of the soft-margin SVM (source: ml-fundamentals/ls26_lecture_svm.pdf):
@@ -89,6 +93,10 @@ $$\boldsymbol{\alpha}^* = \arg\max \left[\sum_i \alpha_i - \frac{1}{2} \sum_{i,j
 $$h(\mathbf{x}) = \text{sign}\!\left(\sum_{i \in I_{SV}} \alpha_i^* y_i \, k(\mathbf{x}_i, \mathbf{x}) + b^*\right)$$
 
 Only support vectors ($\alpha_i > 0$) need to be stored. See [[shared/kernel-functions]] for kernel details.
+
+The kernel method starts by choosing a feature map $\psi:\mathcal{X}\to\mathcal{F}$ and learning a linear separator in $\mathcal{F}$; the resulting classifier can be highly nonlinear in the original input space (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). A kernel $k(\mathbf{x},\mathbf{x}')=\langle\psi(\mathbf{x}),\psi(\mathbf{x}')\rangle$ lets the algorithm work through inner products without explicitly materializing the feature vectors (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
+The representer theorem explains why this is enough: for regularized objectives depending on the training examples only through $\langle \mathbf{w},\psi(\mathbf{x}_i)\rangle$, there is an optimal solution of the form $\mathbf{w}=\sum_i \alpha_i\psi(\mathbf{x}_i)$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). This reduces prediction to kernel evaluations against training points.
 
 ### Common kernels
 
@@ -130,6 +138,7 @@ Replacing $\langle \mathbf{x}_i, \mathbf{x} \rangle$ with $k(\mathbf{x}_i, \math
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[shared/svm]]
 - [[shared/kernel-functions]]
 - [[vc-dimension]]

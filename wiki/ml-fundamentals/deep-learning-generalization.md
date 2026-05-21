@@ -4,9 +4,9 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_dl.pdf
+**Sources**: ls26_lecture_dl.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-05-12
+**Last updated**: 2026-05-16
 
 ---
 
@@ -23,6 +23,8 @@ $$h(\mathbf{x}; \theta) = \mathbf{w}^\top \phi(\mathbf{x}; \theta_\phi)$$
 where $\phi(\mathbf{x}; \theta_\phi)$ is a **learned feature map** (the hidden layers) and $\mathbf{w}$ is a linear classifier on top. This contrasts with kernel methods where the feature map is fixed.
 
 **Universal approximation theorem**: A single hidden layer with enough neurons can approximate any continuous function — but says nothing about learnability or generalization.
+
+The textbook separates the neural-network story into approximation, estimation, and optimization. Networks are highly expressive and can represent broad function families, their sample complexity can be bounded in terms of network size for fixed architectures, but exact ERM training is computationally hard even for restricted network classes (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## Double Descent
 
@@ -65,6 +67,8 @@ This means gradient descent on logistic regression implicitly finds the same sol
 
 SGD has additional implicit regularization beyond GD: the noise from mini-batches biases toward **flat minima** (regions where the loss landscape has low curvature), which tend to generalize better.
 
+From the textbook's classical perspective, SGD is theoretically clean for convex objectives, but neural-network losses are nonconvex; in practice SGD is used as a heuristic that often finds good solutions despite the lack of the same convex guarantees (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). Backpropagation is the efficient procedure for computing the gradients that SGD needs in feedforward networks (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Architectural Inductive Bias
 
 The network architecture encodes assumptions about the data (source: ml-fundamentals/ls26_lecture_dl.pdf):
@@ -80,6 +84,7 @@ Stronger inductive bias = better sample efficiency when the assumption matches t
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[ml-fundamentals/vc-dimension]]
 - [[ml-fundamentals/empirical-risk-minimization]]
 - [[ml-fundamentals/svm]]

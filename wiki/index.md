@@ -6,6 +6,7 @@ Master table of contents for the CVUT LLM Wiki.
 
 ### ML Fundamentals
 - [[ml-fundamentals/course-overview]] — Logical structure of the course and key exam themes
+- [[ml-fundamentals/understanding-machine-learning]] — Source summary and chapter map for Shalev-Shwartz & Ben-David's textbook
 - [[ml-fundamentals/empirical-risk-minimization]] — True/empirical risk, error decomposition, Hoeffding + union bound generalization
 - [[ml-fundamentals/generative-learning]] — MLE for Gaussian mixtures, Fisher information, Cramer-Rao bound, plug-in Bayes
 - [[ml-fundamentals/pac-learning]] — PAC framework, sample complexity for finite H, decision tree and LLM prompt examples
@@ -53,19 +54,19 @@ _No pages yet._
 
 ### NLP
 - [[nlp/course-overview]] — NPFL087 course structure, grading, prerequisites, resources
-- [[nlp/exam-questions]] — Full exam question bank with all 12 questions, sub-questions, expected knowledge, and study tips
+- [[nlp/exam-questions]] — Exam question bank for the 7-question written exam, with topic prompts and expected knowledge
 - [[nlp/exam-clusters]] — Study guide organizing exam topics into three tiers by importance, with confidence tracking and practice needs
-- [[nlp/machine-translation-evaluation]] — BLEU, METEOR, TER, human evaluation methodologies
+- [[nlp/machine-translation-evaluation]] — Manual MT evaluation, BLEU caveats, empirical confidence intervals, LLM judges
 - [[nlp/smt-foundations]] — Statistical translation model, noisy channel, log-linear models, NP-hardness
 - [[nlp/word-alignment]] — Alignment problem formulation, IBM Models 1-2, EM algorithm, GIZA++, hunalign
-- [[nlp/phrase-based-machine-translation]] — Phrase extraction, scoring, reordering models, MERT tuning, Moses
+- [[nlp/phrase-based-machine-translation]] — Phrase extraction, scoring, stack-based decoding, reordering models, MERT tuning, Moses
 - [[nlp/neural-machine-translation]] — Encoder-decoder, attention mechanisms, autoregressive decoding, beam search
 - [[nlp/morphology-machine-translation]] — Lemmatization, BPE, STE, WordPiece, linguistic vs. data-driven approaches
 - [[nlp/factored-translation-models]] — Linguistic factor decomposition, parallel factor decoding, morphologically rich languages
 - [[nlp/syntax-based-smt]] — Hierarchical phrase-based models, CFG, constituency/dependency trees, CYK decoding, cube pruning
 - [[nlp/transfer-based-mt]] — TectoMT, deep-syntactic (t-layer) transfer, HMTM tree language model, analysis-transfer-synthesis pipeline
 - [[nlp/mt-system-combination]] — Confusion network decoding, hypothesis selection, combining external MT with PBMT
-- [[nlp/transformers-nmt]] — Transformer architecture for NMT, self-attention, positional encoding, LLM-based translation
+- [[nlp/transformers-nmt]] — Transformer architecture for NMT, self-attention, positional encoding, source-syntax evidence, LLM-based translation
 - [[nlp/decoding-algorithms]] — Beam search, stack decoding, pruning strategies, future cost estimation, A* search
 - [[nlp/word-and-sentence-representations]] — Word embeddings (Word2Vec, GloVe, FastText), contextual embeddings (ELMo, BERT), sentence pooling
 - [[nlp/multilingual-machine-translation]] — Pivot-based MT, cross-lingual transfer, zero-shot translation, shared vocabularies

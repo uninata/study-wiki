@@ -1,0 +1,1028 @@
+# Trees II
+
+## Type of Trees
+
+We have seen the following types of trees:
+- **Binary Tree**
+- **Binary Search Tree**
+
+But there are many other types of trees:
+
+- **AVL Tree**
+- **Red-Black Tree**
+- **B-Tree**
+- **Trie (Prefix Tree)**
+- **Segment Tree**
+- **Quad Tree**
+- **Heap**
+- **N-ary Tree**
+- **K-D Tree**
+- **Expression Tree**
+- and much more (decision trees, behavior trees, forest, etc.)
+
+
+### Binary Tree
+
+(repeated for completeness)
+
+####  Description
+
+A **Binary Tree** is a tree data structure in which each node has at most two **children**, often referred to as left and right **child** nodes (they are **siblings** to each other). Previous node is **parent**, top node is **root**, "end" nodes (no children) are **leaves**.
+Any node on the path from the root to node `X` is an **ancestor** of node `X`. Any node `Z` for which `Y` is and ancestor is a **descendant** of `Y`. **Predecessor** of `W` is a node processed before `W` during traversal (actual set of predecessors of `W` depends on the *traversal algorithm*). **Successor** of `W` is a node processed after `W` during traversal.
+
+- Organizing hierarchical data
+- Simple data representation (e.g., parse trees for arithmetic expressions)
+- Basis for many more specialized trees (BST, Heap, etc.)
+- Traversal methods include preorder, inorder, and postorder.
+
+#### Implementation
+
+```{python}
+class BinaryTreeNode:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
+
+root = BinaryTreeNode('A')
+root.left = BinaryTreeNode('B')
+root.right = BinaryTreeNode('C')
+root.left.left = BinaryTreeNode('D')
+root.left.right = BinaryTreeNode('E')
+root.right.left = BinaryTreeNode('F')
+```
+
+#### Visualization
+
+```{python}
+from graphviz import Digraph
+
+def visualize_binary_tree(root):
+    dot = Digraph(comment='Binary Tree', format='pdf')
+
+    def add_nodes(node):
+        if node is None:
+            return
+        dot.node(str(id(node)), str(node.val))
+        if node.left:
+            dot.edge(str(id(node)), str(id(node.left)), label="L")
+            add_nodes(node.left)
+        if node.right:
+            dot.edge(str(id(node)), str(id(node.right)), label="R")
+            add_nodes(node.right)
+
+    add_nodes(root)
+    return dot
+
+# Generate and render the visualization for the above tree:
+dot_binary = visualize_binary_tree(root)
+dot_binary
+```
+
+```python
+# creates a PDF file
+dot_binary.render('binary_tree', view=True)
+```
+
+### AVL Tree
+
+#### Description
+An **AVL Tree** is a self-balancing binary search tree where the heights of the two child subtrees of any node differ by no more than one.
+
+- Maintain balance for efficient lookups, insertions, and deletions.
+- Ideal for data sets with frequent updates.
+- Guarantees O(log n) time complexity for key operations.
+- Additional overhead to perform rotations during insertion and deletion.
+
+#### Visualization
+
+<!-- ![AVL Tree Visualization (By Bruno Schalch - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=64250599)](media/AVL_Tree_Example.gif) -->
+[AVL Tree Visualization (By Bruno Schalch - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=64250599)](media/AVL_Tree_Example.gif)
+
+---
+
+### Red-Black Tree
+
+#### Description
+A **Red-Black Tree** is a self-balancing binary search tree where each node is colored either red or black. It maintains balance through color properties and rotations.
+- Ensures O(log n) time for search, insertion, and deletion.
+- Widely used in many language libraries (e.g., C++ STL, Java TreeMap)
+- Balancing is achieved with fewer rotations compared to AVL trees.
+- Implementation is more involved due to color properties.
+
+#### Visualization
+
+<!-- ![Red-Black Tree Visualization (By Nomen4Omen - Own work, CC BY-SA 3.0 de, https://commons.wikimedia.org/w/index.php?curid=36774159)](media/Binary_Tree_Rotation_(animated).gif) -->
+[Red-Black Tree Visualization (By Nomen4Omen - Own work, CC BY-SA 3.0 de, https://commons.wikimedia.org/w/index.php?curid=36774159)](media/Binary_Tree_Rotation_(animated).gif)
+
+---
+
+### B-Tree
+
+#### Description
+A **B-Tree** is a balanced tree data structure that maintains sorted data and allows searches, sequential access, insertions, and deletions in logarithmic time. It is particularly useful for databases and file systems.
+- Nodes can contain multiple keys.
+- Balancing is maintained by splitting and merging nodes.
+- Database indexing
+- File systems and storage management
+
+#### Implementation
+
+```{python}
+class BTreeNode:
+    def __init__(self, leaf=False):
+        self.leaf = leaf
+        self.keys = []
+        self.child = []
+
+class BTree:
+    def __init__(self, t):
+        self.root = BTreeNode(True)
+        self.t = t
+
+    def insert(self, k):
+        root = self.root
+        if len(root.keys) == (2 * self.t) - 1:
+            temp = BTreeNode()
+            self.root = temp
+            temp.child.insert(0, root)
+            self.split_child(temp, 0)
+            self.insert_non_full(temp, k)
+        else:
+            self.insert_non_full(root, k)
+
+    def insert_non_full(self, x, k):
+        i = len(x.keys) - 1
+        if x.leaf:
+            x.keys.append((None, None))
+            while i >= 0 and k < x.keys[i]:
+                x.keys[i + 1] = x.keys[i]
+                i -= 1
+            x.keys[i + 1] = k
+        else:
+            while i >= 0 and k < x.keys[i]:
+                i -= 1
+            i += 1
+            if len(x.child[i].keys) == (2 * self.t) - 1:
+                self.split_child(x, i)
+                if k > x.keys[i]:
+                    i += 1
+            self.insert_non_full(x.child[i], k)
+
+    def split_child(self, x, i):
+        t = self.t
+        y = x.child[i]
+        z = BTreeNode(y.leaf)
+        x.child.insert(i + 1, z)
+        x.keys.insert(i, y.keys[t - 1])
+        z.keys = y.keys[t: (2 * t) - 1]
+        y.keys = y.keys[0: t - 1]
+        if not y.leaf:
+            z.child = y.child[t: 2 * t]
+            y.child = y.child[0: t]
+
+    def print_tree(self, x, l=0):
+        print("Level ", l, " ", len(x.keys), end=":")
+        for i in x.keys:
+            print(i, end=" ")
+        print()
+        l += 1
+        if len(x.child) > 0:
+            for i in x.child:
+                self.print_tree(i, l)
+
+btree = BTree(2)
+nums = [10, 20, 5, 6, 12, 30, 7, 17, 25, 22, 24, 19, 21, 23, 26, 27, 28, 29, 31, 33]
+for num in nums:
+    btree.insert(num)
+
+btree.print_tree(btree.root)
+```
+
+#### Visualization
+
+Since B-Tree nodes contain multiple keys, we can visualize them as boxes:
+
+```{python}
+def visualize_btree_node(node, dot=None, parent_id=None):
+    if dot is None:
+        dot = Digraph(comment='B-Tree')
+    label = " | ".join(map(str, node.keys))
+    dot.node(str(id(node)), label, shape='record')
+    # For each child, draw an edge
+    for child in node.child:
+        dot.edge(str(id(node)), str(id(child)))
+        visualize_btree_node(child, dot, str(id(node)))
+    return dot
+
+dot_btree = visualize_btree_node(btree.root)
+# dot_btree.render('btree', view=True)
+dot_btree
+```
+
+---
+
+### Trie (Prefix Tree)
+
+#### Description
+A **Trie** is a tree-like data structure that stores a dynamic set of strings. Each node represents a character.
+- Highly efficient for string searching
+- Autocomplete and spell-check applications
+- Memory usage can be high if many strings share few common prefixes.
+
+#### Implementation
+
+```{python}
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.end_of_word = False
+
+class Trie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, word):
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.end_of_word = True
+
+    def search(self, word):
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                return False
+            node = node.children[char]
+        return node.end_of_word
+
+# Example Usage:
+trie = Trie()
+trie.insert("apple")
+trie.insert("apples")
+trie.insert("applesauce")
+trie.insert("app")
+trie.insert("application")
+trie.insert("applause")
+trie.insert("appreciate")
+trie.insert("apprentice")
+trie.insert("ablaze")
+print(trie.search("app"))   # True
+print(trie.search("appl"))  # False
+```
+
+#### Visualization
+
+```{python}
+def visualize_trie(root):
+    dot = Digraph(comment='Trie')
+
+    def add_nodes(node, parent_id=None, label_edge=""):
+        node_id = str(id(node))
+        shape = 'doublecircle' if node.end_of_word else 'circle'
+        dot.node(node_id, "", shape=shape)
+        if parent_id is not None:
+            dot.edge(parent_id, node_id, label=label_edge)
+        for char, child in node.children.items():
+            add_nodes(child, node_id, label_edge=char)
+
+    add_nodes(root)
+    return dot
+
+dot_trie = visualize_trie(trie.root)
+# dot_trie.render('trie', view=True)
+dot_trie
+```
+
+### Quad Tree
+
+#### Description
+A **Quad Tree** is used to partition a two-dimensional space by recursively subdividing it into four quadrants or regions.
+
+- Suited for 2D spatial data.
+- The level of subdivision adapts to the density of points
+- Image compression
+- Spatial indexing
+- Collision detection in games
+
+#### Implementation
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+class QuadTreeNode:
+    def __init__(self, x, y, width, height, capacity=2, depth=0):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.capacity = capacity
+        self.depth = depth
+        self.points = []
+        self.children = []
+
+    def insert(self, point):
+        if len(self.children) > 0:
+            for child in self.children:
+                if child.contains(point):
+                    child.insert(point)
+                    return
+        self.points.append(point)
+        if len(self.points) > self.capacity and self.depth < 8:
+            self.subdivide()
+
+    def subdivide(self):
+        half_width = self.width / 2
+        half_height = self.height / 2
+        self.children = [
+            QuadTreeNode(self.x, self.y, half_width, half_height,
+                self.capacity, self.depth + 1),
+            QuadTreeNode(self.x + half_width, self.y, half_width, half_height,
+                self.capacity, self.depth + 1),
+            QuadTreeNode(self.x, self.y + half_height, half_width, half_height,
+                self.capacity, self.depth + 1),
+            QuadTreeNode(self.x + half_width, self.y + half_height, half_width,
+                half_height, self.capacity, self.depth + 1)
+        ]
+        points = self.points
+        self.points = []
+        for point in points:
+            for child in self.children:
+                if child.contains(point):
+                    child.insert(point)
+
+    def contains(self, point):
+        return (self.x <= point[0] <= self.x + self.width and
+                self.y <= point[1] <= self.y + self.height)
+
+# Generate some random points
+num_points = 100
+# points = [(
+# np.random.uniform(0, 100),
+#  np.random.uniform(0, 100)
+# ) for _ in range(num_points)]
+points = [(
+    np.random.normal(100, 20),
+    np.random.normal(100, 20)
+    ) for _ in range(num_points)]
+
+# Create a Quadtree and insert the points
+root = QuadTreeNode(0, 0, 200, 200)
+for point in points:
+    root.insert(point)
+```
+
+
+#### Visualization
+
+```{python}
+fig, ax = plt.subplots(figsize=(10, 10))
+ax.scatter([p[0] for p in points], [p[1] for p in points], s=2)
+
+def draw_quadtree(node):
+    ax.add_patch(
+        plt.Rectangle(
+            (node.x, node.y), node.width, node.height,
+            fill=False, edgecolor='black'
+            )
+        )
+    if len(node.children) > 0:
+        for child in node.children:
+            draw_quadtree(child)
+
+draw_quadtree(root)
+plt.title("Quadtree Visualization")
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.show()
+```
+
+### Octree
+
+#### Description
+An **Octree** is a tree-based data structure used to efficiently store and retrieve data from a three-dimensional space. It is often used in computer graphics or 3D modeling.
+
+- Suited for 3D spatial data
+- Point cloud representation (lidar, stereo camera data)
+- Collision / visibility detection in 3D space
+
+
+#### Implementation
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+class OctreeNode:
+    def __init__(self, x, y, z, width, height, depth, capacity=4, node_depth=0):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.width = width
+        self.height = height
+        self.depth = depth
+        self.capacity = capacity
+        self.node_depth = node_depth
+        self.points = []
+        self.children = []
+
+    def insert(self, point):
+        if len(self.children) > 0:
+            for child in self.children:
+                if child.contains(point):
+                    child.insert(point)
+                    return
+        self.points.append(point)
+        if len(self.points) > self.capacity and self.node_depth < 8:
+            self.subdivide()
+
+    def subdivide(self):
+        half_width = self.width / 2
+        half_height = self.height / 2
+        half_depth = self.depth / 2
+        self.children = [
+            OctreeNode(self.x, self.y, self.z, half_width, half_height,
+                half_depth, self.capacity, self.node_depth + 1),
+            OctreeNode(self.x + half_width, self.y, self.z, half_width,
+                half_height, half_depth, self.capacity, self.node_depth + 1),
+            OctreeNode(self.x, self.y + half_height, self.z, half_width,
+                half_height, half_depth, self.capacity, self.node_depth + 1),
+            OctreeNode(self.x + half_width, self.y + half_height, self.z,
+                half_width, half_height, half_depth,
+                self.capacity, self.node_depth + 1),
+            OctreeNode(self.x, self.y, self.z + half_depth, half_width,
+                half_height, half_depth, self.capacity, self.node_depth + 1),
+            OctreeNode(self.x + half_width, self.y, self.z + half_depth,
+                half_width, half_height, half_depth,
+                self.capacity, self.node_depth + 1),
+            OctreeNode(self.x, self.y + half_height, self.z + half_depth,
+                half_width, half_height, half_depth,
+                self.capacity, self.node_depth + 1),
+            OctreeNode(self.x + half_width, self.y + half_height,
+                self.z + half_depth, half_width, half_height, half_depth,
+                self.capacity, self.node_depth + 1)
+        ]
+        points = self.points
+        self.points = []
+        for point in points:
+            for child in self.children:
+                if child.contains(point):
+                    child.insert(point)
+
+    def contains(self, point):
+        return (
+            self.x <= point[0] <= self.x + self.width and
+                self.y <= point[1] <= self.y + self.height and
+                self.z <= point[2] <= self.z + self.depth
+            )
+
+# Generate some random points
+num_points = 100
+points = [
+    (
+        np.random.normal(50, 10),
+        np.random.normal(50, 10),
+        np.random.normal(50, 10)
+    ) for _ in range(num_points)]
+
+# Create an Octree and insert the points
+root = OctreeNode(0, 0, 0, 100, 100, 100)
+for point in points:
+    root.insert(point)
+```
+
+#### Visualization
+
+```{python}
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter([p[0] for p in points], [p[1] for p in points], [p[2] for p in points], s=2)
+
+def draw_octree(node):
+    if len(node.children) > 0:
+        for child in node.children:
+            draw_octree(child)
+    else:
+        x = [node.x, node.x + node.width, node.x + node.width, node.x, node.x]
+        y = [node.y, node.y, node.y + node.height, node.y + node.height, node.y]
+        z = [node.z, node.z, node.z, node.z, node.z]
+        ax.plot(x, y, z, color='black')
+
+        x = [node.x, node.x + node.width, node.x + node.width, node.x, node.x]
+        y = [node.y, node.y, node.y + node.height, node.y + node.height, node.y]
+        z = [node.z + node.depth, node.z + node.depth, node.z + node.depth, node.z + node.depth, node.z + node.depth]
+        ax.plot(x, y, z, color='black')
+
+        x = [node.x, node.x + node.width, node.x + node.width, node.x, node.x]
+        y = [node.y, node.y, node.y, node.y, node.y]
+        z = [node.z, node.z, node.z + node.depth, node.z + node.depth, node.z]
+        ax.plot(x, y, z, color='black')
+
+        x = [node.x, node.x, node.x, node.x, node.x]
+        y = [node.y, node.y + node.height, node.y + node.height, node.y, node.y]
+        z = [node.z, node.z, node.z + node.depth, node.z + node.depth, node.z]
+        ax.plot(x, y, z, color='black')
+
+        x = [node.x + node.width, node.x + node.width, node.x + node.width, node.x + node.width, node.x + node.width]
+        y = [node.y, node.y + node.height, node.y + node.height, node.y, node.y]
+        z = [node.z, node.z, node.z + node.depth, node.z + node.depth, node.z]
+        ax.plot(x, y, z, color='black')
+
+        x = [node.x, node.x + node.width, node.x + node.width, node.x, node.x]
+        y = [node.y + node.height, node.y + node.height, node.y + node.height, node.y + node.height, node.y + node.height]
+        z = [node.z, node.z, node.z + node.depth, node.z + node.depth, node.z]
+        ax.plot(x, y, z, color='black')
+
+# Visualize the Octree
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter([p[0] for p in points], [p[1] for p in points], [p[2] for p in points], s=2)
+draw_octree(root)
+plt.title("Octree Visualization")
+plt.show()
+```
+
+---
+
+### Heap
+
+#### Description
+A **Heap** is a specialized tree-based structure that satisfies the heap property. For a max heap, every parent node is greater than or equal to its children; for a min heap, every parent node is less than or equal to its children.
+- Implementation of priority queues
+- Heapsort algorithm
+- Heaps are typically implemented using arrays (lists).
+- Parent/child relationships can be calculated using indices.
+
+#### Implementation
+
+```{python}
+import heapq
+
+heap = []
+heapq.heappush(heap, 10)
+heapq.heappush(heap, 5)
+heapq.heappush(heap, 7)
+print("Heap:", heap)
+print("Smallest element:", heapq.heappop(heap))
+print("Heap:", heap)
+```
+
+#### Visualization
+
+To visualize a heap as a binary tree, you can adapt the binary tree visualization code. For a simple text-based output:
+
+```{python}
+def print_heap_tree(heap):
+    n = len(heap)
+    level = 0
+    index = 0
+    while index < n:
+        count = 2**level
+        line = heap[index:index+count]
+        print(" " * (2**(4-level)), "   ".join(map(str,line)))
+        index += count
+        level += 1
+
+random_list = np.random.randint(1, 100, size=20).tolist()
+print("Random List:", random_list)
+heapq.heapify(random_list)
+print("Heapified List:", random_list)
+print_heap_tree(random_list)
+```
+
+---
+
+### N-ary Tree
+
+## Description
+An **N-ary Tree** is a tree in which each node can have up to N children. It is basically a "generalized" binary tree. This structure is particularly useful for representing hierarchical data like file systems, organizational charts, or XML documents.
+
+---
+
+# Recursion II
+
+## Traversal of Graphs (and Graph-like Structures)
+
+Fundamental algorithms for traversing a tree (and other graph-like structures) are:
+- **Breadth-First Search (BFS)**: Visit all nodes at a given level before moving to the next level.
+- **Depth-First Search (DFS)**: Traverse the tree deeper and deeper until reaching the leaf nodes. Then, backtrack to the parent nodes.
+- **Backtracking**: DFS + pruning ("exit" when constraints are violated).
+
+### BFS Traversal
+```{python}
+!pip install networkx
+```
+
+```{python}
+import networkx as nx
+import matplotlib.pyplot as plt
+from collections import deque
+from IPython.display import display, clear_output
+
+def visualize_bfs(graph, start, target):
+    # Create networkx graph
+    G = nx.Graph()
+    for node, neighbors in graph.items():
+        G.add_node(node)
+        for neighbor in neighbors:
+            G.add_edge(node, neighbor)
+
+    pos = nx.spring_layout(G, seed=42)  # Consistent layout
+    visited = set()
+    queue = deque([[start]])
+    steps = []
+
+    plt.figure(figsize=(10, 6))
+
+    while queue:
+        path = queue.popleft()
+        current = path[-1]
+
+        # Record state for visualization
+        steps.append({
+            "current": current,
+            "queue": [p[-1] for p in queue],
+            "visited": set(visited),
+            "path": path
+        })
+
+        if current == target:
+            break
+
+        if current not in visited:
+            visited.add(current)
+            for neighbor in graph[current]:
+                if neighbor not in visited:
+                    new_path = path + [neighbor]
+                    queue.append(new_path)
+
+    # Animate the search process
+    for i, step in enumerate(steps):
+        clear_output(wait=True)
+        plt.title(f"BFS Step {i+1}: Visiting {step['current']}")
+
+        node_colors = []
+        for node in G.nodes():
+            if node == step['current']:
+                node_colors.append('yellow')  # Current node
+            elif node in step['path']:
+                node_colors.append('lime')    # Path nodes
+            elif node in step['queue']:
+                node_colors.append('orange')   # Nodes in queue
+            elif node in step['visited']:
+                node_colors.append('red')      # Visited nodes
+            else:
+                node_colors.append('skyblue')  # Unvisited nodes
+
+        nx.draw(G, pos, with_labels=True, node_color=node_colors,
+                node_size=2000, font_size=12, font_weight='bold')
+        plt.show()
+        display(f"Current path: {' → '.join(step['path'])}")
+        plt.pause(1.5) if i < len(steps)-1 else plt.show()
+
+    return steps[-1]['path'] if current == target else None
+
+# Social network represented as a graph
+social_graph = {
+    "Alice": ["Charlie", "Diana"],
+    "Bob": ["Eve"],
+    "Charlie": ["Diana", "Frank"],
+    "Diana": ["Grace"],
+    "Eve": ["Bob"],  # Creates a cycle
+    "Frank": ["Grace"],
+    "Grace": ["Bob"]  # Target connection
+}
+
+# Find shortest path from Alice to Bob
+%matplotlib inline
+shortest_path = visualize_bfs(social_graph, "Alice", "Bob")
+print("\nFinal shortest path:", shortest_path)
+```
+
+🔵 Blue: Unvisited nodes
+
+🟠 Orange: Nodes in the queue
+
+🔴 Red: Visited nodes
+
+🟢 Lime: Nodes in current path
+
+🟡 Yellow: Currently processing node
+
+### DFS Traversal
+* in-order traversal
+* pre-order traversal
+* post-order traversal
+
+
+### DFS vs BFS
+```{python}
+#| echo: false
+#| code-fold: true
+def generate_grid(height, width, obstacle_prob=0.2):
+    """Generate a grid with random terrain values (-1 = obstacle)"""
+    grid = np.random.randint(0, 101, (height, width))
+    obstacles = np.random.choice([0, 1], size=(height, width),
+    p=[1-obstacle_prob, obstacle_prob])
+    grid[obstacles == 1] = -1
+
+    # Ensure start/goal are valid
+    start, goal = (0, 0), (height-1, width-1)
+    while grid[start] == -1: start = (
+        np.random.randint(height), np.random.randint(width)
+    )
+    while grid[goal] == -1 or goal == start: goal = (
+        np.random.randint(height), np.random.randint(width)
+    )
+
+    return grid, start, goal
+
+def plot_grid(
+    grid, path=None,
+    start=None, goal=None,
+    title: str = "", path_cost: int = -1):
+    """Visualize grid with jet colormap for passable terrain (0-100)"""
+    # Create masked array to handle obstacles
+    masked_grid = np.ma.masked_where(grid == -1, grid)
+
+    # Setup colormap
+    cmap = plt.cm.viridis  # Blue (0) -> Yellow (100)
+    cmap.set_under('black', 1.0)  # -1 values shown as black
+
+    plt.figure(figsize=(8, 8))
+
+    # Plot main grid with colorbar
+    im = plt.imshow(masked_grid, cmap=cmap, vmin=0, vmax=100)
+    plt.colorbar(im, fraction=0.046, pad=0.04, label='Movement Cost')
+
+    # Plot path if provided
+    if path:
+        path_arr = np.array(path)
+        plt.plot(path_arr[:, 1], path_arr[:, 0], 'b-', lw=2,
+                 marker='o', markersize=6, markeredgecolor='k')
+
+    # Mark start (green) and goal (red)
+    if start:
+        plt.plot(start[1], start[0], 'go', markersize=12,
+                markeredgecolor='k', label='Start')
+    if goal:
+        plt.plot(goal[1], goal[0], 'ro', markersize=12,
+                markeredgecolor='k', label='Goal')
+
+    plt.title(
+        title + f" (Path Cost: {path_cost})" if path_cost != -1 else title
+    )
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+```
+
+```{python}
+import heapq
+
+# 1. Non-recursive BFS
+def bfs_iterative(grid, start, goal):
+    queue = [(start, [start])]
+    visited = set()
+    height, width = grid.shape
+
+    while queue:
+        (r, c), path = queue.pop(0)
+        if (r, c) == goal:
+            return path
+        for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+            nr, nc = r+dr, c+dc
+            if 0 <= nr < height and 0 <= nc < width:
+                if grid[nr, nc] != -1 and (nr, nc) not in visited:
+                    visited.add((nr, nc))
+                    queue.append(((nr, nc), path + [(nr, nc)]))
+    return None
+
+# 2. Recursive DFS
+def dfs_recursive(grid, start, goal, visited=None, path=None):
+    if visited is None: visited = set()
+    if path is None: path = [start]
+
+    if start == goal:
+        return path.copy()
+
+    visited.add(start)
+
+    for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+        r, c = start
+        nr, nc = r+dr, c+dc
+        if 0 <= nr < grid.shape[0] and 0 <= nc < grid.shape[1]:
+            if grid[nr, nc] != -1 and (nr, nc) not in visited:
+                result = dfs_recursive(
+                    grid, (nr, nc), goal, visited, path + [(nr, nc)]
+                )
+                if result:
+                    return result
+    return None
+
+# 3. Recursive BFS (unconventional approach)
+def bfs_recursive(grid, start, goal, queue=None, visited=None):
+    if queue is None:
+        queue = [(start, [start])]
+        visited = set([start])
+        return bfs_recursive(grid, start, goal, queue, visited)
+
+    if not queue:
+        return None
+
+    (r, c), path = queue.pop(0)
+    if (r, c) == goal:
+        return path
+
+    for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+        nr, nc = r+dr, c+dc
+        if 0 <= nr < grid.shape[0] and 0 <= nc < grid.shape[1]:
+            if grid[nr, nc] != -1 and (nr, nc) not in visited:
+                visited.add((nr, nc))
+                queue.append(((nr, nc), path + [(nr, nc)]))
+
+    return bfs_recursive(grid, start, goal, queue, visited)
+
+# 4. DFS with opened list
+def dfs_recursive_opened(grid, current, goal, opened=None, path=None):
+    if opened is None:
+        opened = set([current])
+        path = [current]
+        return dfs_recursive_opened(grid, current, goal, opened, path)
+
+    if current == goal:
+        return path
+
+    for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+        r, c = current
+        nr, nc = r+dr, c+dc
+        if 0 <= nr < grid.shape[0] and 0 <= nc < grid.shape[1]:
+            if grid[nr, nc] != -1 and (nr, nc) not in opened:
+                opened.add((nr, nc))
+                result = dfs_recursive_opened(
+                    grid, (nr, nc), goal, opened, path + [(nr, nc)]
+                )
+                if result:
+                    return result
+    return None
+
+# 5. BFS with opened list
+def bfs_recursive_opened(grid, queue, goal, visited=None):
+    if visited is None:
+        visited = set([queue[0][0]])
+        return bfs_recursive_opened(grid, queue, goal, visited)
+
+    if not queue:
+        return None
+
+    (r, c), path = queue.pop(0)
+    if (r, c) == goal:
+        return path
+
+    for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+        nr, nc = r+dr, c+dc
+        if 0 <= nr < grid.shape[0] and 0 <= nc < grid.shape[1]:
+            if grid[nr, nc] != -1 and (nr, nc) not in visited:
+                visited.add((nr, nc))
+                queue.append(((nr, nc), path + [(nr, nc)]))
+
+    return bfs_recursive_opened(grid, queue, goal, visited)
+
+# 6. Dijkstra's Algorithm
+def dijkstra(grid, start, goal):
+    heap = [(0, start, [start])]
+    visited = set()
+    height, width = grid.shape
+
+    while heap:
+        cost, (r, c), path = heapq.heappop(heap)
+        if (r, c) == goal:
+            return path
+        if (r, c) in visited:
+            continue
+        visited.add((r, c))
+
+        for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+            nr, nc = r+dr, c+dc
+            if 0 <= nr < height and 0 <= nc < width and grid[nr, nc] != -1:
+                new_cost = cost + grid[nr, nc]
+                heapq.heappush(heap, (new_cost, (nr, nc), path + [(nr, nc)]))
+
+    return None
+```
+
+```{python}
+    grid, start, goal = generate_grid(10, 10)
+    goal = (3, 3)
+    print("Start:", start, "Goal:", goal)
+
+    # Test all algorithms
+    algorithms = [
+        ("BFS Iterative",
+            bfs_iterative),
+        ("DFS Recursive",
+            lambda g, s, t: dfs_recursive(g, s, t)),
+        ("BFS Recursive",
+            lambda g, s, t: bfs_recursive(g, s, t)),
+        ("DFS Opened List",
+            lambda g, s, t: dfs_recursive_opened(g, s, t, None)),
+        ("BFS Opened List",
+            lambda g, s, t: bfs_recursive_opened(g, [(s, [s])], t)),
+        ("Dijkstra", dijkstra)
+    ]
+
+    for name, func in algorithms:
+        path = func(grid, start, goal)
+        print(f"{name}: {'Path found' if path else 'No path'}")
+
+        if path:
+            path_cost = sum(grid[path[i]] for i in range(1, len(path) - 1))
+            plot_grid(grid, path, start, goal, name, path_cost)
+
+```
+
+### Backtracking
+```{python}
+import matplotlib.pyplot as plt
+from copy import deepcopy
+import numpy as np
+
+def is_safe(board, row, col, n):
+    # Check this row
+    for i in range(col):
+        if board[row][i] == 1:
+            return False
+
+    # Check upper diagonal
+    i, j = row, col
+    while i >= 0 and j >= 0:
+        if board[i][j] == 1:
+            return False
+        i -= 1
+        j -= 1
+
+    # Check lower diagonal
+    i, j = row, col
+    while i < n and j >= 0:
+        if board[i][j] == 1:
+            return False
+        i += 1
+        j -= 1
+
+    return True
+
+def solve_n_queens(n):
+    board = np.zeros((8, 8))
+    solutions = []
+
+    def backtrack(col):
+        if col == n:
+            solutions.append(deepcopy(board))
+            return True
+
+        for i in range(8):
+            if is_safe(board, i, col, n):
+                board[i, col] = 1
+                if backtrack(col + 1):
+                    return True
+                board[i, col] = 0
+
+        return False
+
+    backtrack(0)
+    return solutions
+
+def visualize_solutions(solutions):
+    num_solutions = len(solutions)
+    fig, axes = plt.subplots(1, num_solutions, figsize=(16, 4))
+    if num_solutions == 1:
+        axes = [axes]
+
+    for i, solution in enumerate(solutions):
+        ax = axes[i]
+        ax.set_title(f"Solution {i+1}")
+        ax.set_xticks(range(8))
+        ax.set_yticks(range(8))
+        ax.grid()
+
+        for row in range(len(solution)):
+            for col in range(len(solution)):
+                if solution[row][col] == 1:
+                    ax.add_artist(
+                        plt.Circle((col, row), 0.4, fill=False, color='r'))
+
+        ax.set_xlim([-0.5, 8 - 0.5])
+        ax.set_ylim([8 - 0.5, -0.5])
+        ax.set_aspect('equal')
+
+    plt.show()
+
+# Example usage
+n = 8
+solutions = solve_n_queens(n)
+print(solutions)
+visualize_solutions(solutions)
+```

@@ -1,0 +1,796 @@
+# Abstract data types - stack, queue, tree
+
+In programming, we often want to describe *what operations are available* without specifying *how they are implemented*. Such concept is called **Abstract Data Types (ADT)**. ADTs offer the following benefits:
+- abstraction and modularity  
+- easier reasoning about correctness  
+- ability to swap implementations  
+
+
+## Prelude - Object oriented programming (OOP)
+
+When talking about (abstract) data types, offering a range of methods, it is useful to recap how OOP works. The OOP is very useful, as it is often used to specify concrete implementation of the data types.
+
+### Basic of classes in Python
+
+#### Defining custom class
+
+```{python}
+# use `class` keyword to define a class, followed by the desired class name
+class MyAwesomeClass():  # brackets can be omitted or we can "inherit" from "object" class
+
+    def __init__(self, a: int, b: str, c: bool = False) -> None:  # this is called a class constructor
+        """ The constructor is called when an instance of the class is created.
+        It is used to initialize the instance's attributes. Constructor can have arguments,
+        "a", "b" and "c" in this case.
+        Note the type "hints" for each arguments and the default value for "c".
+        """
+        # public attributes (class instance variables) are accessible for reading and writing from "the outside"
+        self.a = a  # this will be a public "attribute"
+        # protected attributes are intended for access only from the class instance and instances of its subclasses
+        self._b = b  # this will be a protected attribute
+        # private attributes are intended for access only from the class instance (not from subclasses)
+        self.__c = c  # this will be a private attribute
+
+        self._peeks = 0  # protected attribute, not assigned from constructor arguments
+
+    def do_something(self) -> None:  # "public" method with no arguments and nor return value
+        print("Hello world!")
+
+    def count_peeks(self) -> int:  # "public" method with no arguments and return value
+        return self._peeks
+
+    def do_something_else(self, x: int, y: int) -> int:  # "public" method with arguments and return value
+        result = x + y * self.a
+        self.__do_something_secret(result)
+        return result
+
+    def _do_something_hidden(self):  # "protected" method, only visible to the class and subclasses
+        self.a += 1
+
+    def __do_something_secret(self, result):  # "private" method, only visible to the class (not subclasses)
+        if self.__c:
+            print("Hello!", result)
+        else:
+            print("Goodbye!", result)
+
+    def __len__(self):  # "magic" method used when the function `len` is called on the instance
+        return self.a
+
+    @property
+    def b(self) -> str:  # "getter" method of a property
+        """ "Getter" of a public property.
+        `b` will appear as an "attribute" of the class
+        that can be read.
+        This approach allows to perform additional computation when
+        the property is read.
+        """
+        self._peeks += 1  # counts how many times the property is read
+        return self._b
+
+    @b.setter
+    def b(self, value: str):  # "setter" method of a property
+        """
+        `b` will appear as an "attribute" of the class
+        that can be written into. This is a good way to control
+        the changes to the object's variables.
+        E.g., checking if valid type is assigned.
+        """
+        if not isinstance(value, str):
+            print(f"Value assigned to `b` must be a string! Not {type(value)}")
+            return
+        self._b = value
+
+    @property
+    def can_fly(self) -> bool:  # read only property (no setter method exists)
+        """ `can_fly` public property.
+        Property getters and setter do not need to return or modify actual variables.
+        They can be used as "proxy" to some computation of other variables.
+        """
+        return self.a % 2 == 0
+```
+#### Using custom class
+
+```{python}
+# create an instance of the class
+my_object = MyAwesomeClass(1, "hello")  # we can but don't have to provide value for "c"
+
+# access public attributes
+print(my_object.a)  # 1
+print(my_object.b)  # "hello"
+print(my_object.can_fly)  # False
+
+# calling public methods
+my_object.do_something()  # Hello world!
+
+# calling public methods with arguments and return value
+result = my_object.do_something_else(2, 3)  # 2 + 3 * 1 = 5
+print(result)  # 5
+my_object.a = 2  # change the value of "a"
+result = my_object.do_something_else(2, 3)  # 2 + 3 * 2 = 8
+
+# reading properties
+print(my_object.b)  # "hello"
+print(my_object.can_fly)  # False
+
+# writing properties
+my_object.b = "world"
+print(my_object.b)  # "world"
+
+print(f"Someone looked at 'b' {my_object.count_peeks()} times")
+
+# using magic methods
+print(len(my_object))  # 1
+
+# test access "control"
+my_object.b = 132
+my_object.reservoir = "123"
+```
+
+#### Inheritance
+
+```{python}
+class ChildClass(MyAwesomeClass):
+    def __init__(self, a: int, b: str, e: int):
+        super().__init__(a, b, c=True)  # call the constructor of the parent class
+        self.e = e  # initialize own attributes
+
+    def do_something(self):  # overriding the parent method
+        print("Hello from child class!")
+
+    def _do_something_hidden(self):
+        return super()._do_something_hidden()
+```
+
+```{python}
+# create an instance of the child class
+child_object = ChildClass(1, "hello", 5)
+child_object.do_something()  # Hello from child class!
+child_object.do_something_else(2, 3)  # 5
+```
+
+#### Abstract classes
+
+```{python}
+from abc import ABC, abstractmethod
+
+
+class MyAbstractClass(ABC):
+    @abstractmethod
+    def do_something(self):
+        pass
+
+    @property
+    @abstractmethod
+    def can_fly(self):
+        pass
+```
+
+Abstract classes are not to be directly instantiated.
+
+```python
+my_abstract_object = MyAbstractClass()  # TypeError
+```
+
+Rather, they are used to **specify requirements of functionality**. The following function requires some subclass of `MyAbstractClass`. This is to ensure that any argument for this function will provide (at least) the methods and have the properties defined in `MyAbstractClass`.
+
+```{python}
+def my_function(my_object: MyAbstractClass):
+    if not issubclass(type(my_object), MyAbstractClass):
+        print("my_object must be a subclass of MyAbstractClass")
+        print(f"Provided argument type was {type(my_object)}")
+        return
+    my_object.do_something()
+    print(my_object.can_fly)
+```
+
+To satisfy the requirements of `my_function`, we need to provide an instance of a subclass of `MyAbstractClass`. We have to define the subclass first.
+
+```{python}
+class MyConcreteClass(MyAbstractClass):
+    def do_something(self):
+        print("Hello world!")
+
+    @property
+    def can_fly(self):
+        return False
+```
+
+Now, we can create an object of `MyConcreteClass` and pass it to `my_function`.
+
+```{python}
+my_object = MyConcreteClass()
+my_function(my_object)  # Hello world! False
+```
+
+Let's see what will happen if we provide an "incorrect" argument for `my_function`:
+
+```{python}
+my_object = MyAwesomeClass(1, "hello")
+my_function(my_object)
+my_function(5)
+```
+
+#### Important note on Python variable access and typing
+
+Unlike in some other languages, in Python, the access and type "hints" are just that - hints. There is no way to actually restrict access to variables (i.e., the private/protected attributes can be still accessed "publicly").
+Likewise, there is nothing that will prevent a script to be executed with a variable of the wrong type. It will raise an error if an attribute or a method is missing but there is no "compile-time checking" of the type of a variable.
+However, the use of these conventions is still encouraged, as it makes the code more readable and many IDEs (or their plugins) will be able to issue warnings about potential errors.
+
+
+## Data types
+
+Now, let's get back to data types. First, a bit of theory.
+
+### What is a data type?
+
+A data type in programming defines the domain (possible values), operations (what can be done with the values) and (possibly) representation (how the values are stored) for the given data. For example, `integer` (or `int` in Python) is a data type that can store integers (i.e., whole numbers) and supports addition, subtraction, multiplication, division, etc.
+It is stored as a contiguous sequence of 8 bytes (64 bits) in the memory.
+
+What is important to note is that each data type also defines the set of possible operations, not just the values.
+
+### Abstract data types
+
+Abstract data types (ADT) are **abstract** models of programming constructs. They are defined from the behavioral point of view - what interfaces (methods, attributes) they offer, what are the inputs/outputs. The ADT does not, however, define the specific implementation (hence the "abstract" part of their name). Those depend on the language used and needs of the application where they are used.
+
+We will talk about some specific, commonly used ADTs. However, one can also define a new ADT - it just requires definition of abstracted behavior and interfaces. Of course, any newly defined *thing* is only useful when it has some beneficial properties and is widely accepted.
+
+### User defined types - structures
+
+User defined types are different from ADTs in that they typically define the structure and concrete implementation (rather than the abstracted definition), often using (multiple) ADTs or their implementation (in the specific language).
+
+### Abstract data types and abstract classes
+
+While **abstract classes** (and other "interface" definitions, such as protocols) offer a way of defining, restricting and requiring an ADT, an abstract class is not automatically an ADT - definition of ADT requires more "rigorous" definition (typically "mathematical language" is used).
+Nonetheless, an abstract class is often used to indicate the requirement for a specific ADT.
+
+### ADT vs concrete implementation
+
+A simple example of ADT is **a list**. Lists can store and provide access to an ordered collection of items that can be accessed by their position in the list (index). However, the specific implementation is not *part of* the definition of what a list is. A list can be, actually, implemented in a few different ways. For example:
+
+1)  Contiguous memory block, divided into segments of equal size - one for each item.
+
+-   advantages: compact size (minimal memory overhead), fast (constant time) access, easily parallelized operations (e.g., dot product)
+-   disadvantages: can only store same-size objects that always reside in a single memory block (i.e., no complex objects), requires memory "reallocation" when expanded or extra "empty" memory is required, deletion/insertion of items can be very expensive (reallocation or a lot of copying)
+
+2)  Pointer table - the main structure (stored as contiguous memory block) only contains **pointers** to memory locations (and size) where each element is stored.
+
+-   advantages: constant access time, can store practically any data of varying type
+-   disadvantages: memory overhead (list of pointers), memory reallocation when expanded (though, theoretically less memory - only pointer size) and all other memory issues of 1), issues with invalid pointers, inefficient for "small" data types
+
+3)  Linked list - each object is encapsulated in a container that holds the object (or a pointer to it) and a pointer to where the next (or even previous and first/last) item is stored.
+
+-   advantages: can hold any data type of varying size, no memory reallocation when size is changed, fast (constant time) insertion/deletion of items
+-   disadvantages: memory overhead, linear access time, pointer issues (data corruption can destroy the remainder of the list)
+
+As you can see, these are quite different approaches, offering different advantages and disadvantages. Nonetheless, on the surface, they would "behave" the same - holding a collection of items that you can access by an index. You can even combine a few different structures. E.g., you can implement a linked list with a pointer table. At first glance, such implementation would offer no reasonable advantage - you would still need to perform memory reallocation when the list size changes or during deletion/insertion. However, it can actually be advantageous in certain cases, for example, if at times, there are frequent updates but you still need fast access time. In such case, when there are a lot of updates (deletion/insertion/appending), the structure would "invalidate" the pointer table temporarily (which would temporary cause slower access). The underlying linked list would enable fast updates and when the updates are finished, the pointer table would be updated to correctly point to all items, allowing fast access, again. This approach offers fast access and yet saves potentially a lot of (expensive) memory allocations. Of course, this is at the cost of memory and computation overhead.
+
+Still, from the standpoint of a user of such list, this structure can still appear as "just a list". And this, actually, is one of the core principles of ADT - as a user, you don't (need to) care for the underlying structure and can even *swap* between different implementations (think of how many functions can work with tuples, lists and NumPy arrays without any change).
+
+## List of common ADTs
+
+Here are a few generally useful ADTs, that are typically used in programming:
+
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Name      | Properties                                                                                                                                                                                                               | Usage                                                                                                                    |  
++===========+==========================================================================================================================================================================================================================+===========================================================================================================================+  
+| List      | Stores ordered collection of items that can be retrieved by index ("random access"). Variation: Linked list (sequential access).                                                                                         | arrays, any list of items                                                                                                 |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Stack     | Implements a storage based on the LIFO principle (Last In - First Out): the element that was last pushed into the stack is the first one to be retrieved.                                                                | call stack, storage for "reversible" actions (e.g., undo/redo in text/image editors)                                      |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Queue     | Implements a storage based on the FIFO principle (First in - First out): the element added to the queue first is the first one to be retrieved.                                                                          | task scheduling (printers, multi-processing), message buffers                                                             |  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
+|           | Common variations: Double-ended Queue (deque), priority queue.                                                                                                                                                           |                                                                                                                           |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Tree      | Hierarchical structure, where each node (item) has a parent, except for the "root" of the tree and each node can have children, except for "leaves". Essentially a special case of Graph - DAG (directed acyclic graph). | representation of hierarchical data - families, file systems;                                                             |  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
+|           | Several variations exist: Binary tree, Red-black tree, octree, even "forests" exist                                                                                                                                      | searching (BST - binary search tree), decision making (decision trees, trie - autocompletion)                             |  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
+|           |                                                                                                                                                                                                                          | spatial data (R-tree, octree)                                                                                             |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Graph     | Set of vertices and edges between vertices, specifying relationship between vertices.                                                                                                                                    | any "network" related applications - social, internet, geographic (route planing)...                                      |  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
+|           | Many variations based on types of vertices and edges (e.g,. Attributed Graph, (A)cyclic graph, etc.)                                                                                                                     |                                                                                                                           |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Set       | An unordered collection of unique items - based on mathematical sets.                                                                                                                                                    | text processing (bag of words), searching/checking for unique items or duplicates, any application of sets in math.-sense |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+| Map       | Data stored as key-value pairs. Allows fast lookup.                                                                                                                                                                      | dictionaries, lookup tables                                                                                               |  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
+|           | Common variations: Hashmap (specifies implementation), dictionary, associative array                                                                                                                                     |                                                                                                                           |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+|           |                                                                                                                                                                                                                          |                                                                                                                           |  
++-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+  
+
+: List of common ADTs
+
+
+## Common ADTs
+
+### Lists
+
+#### Description
+
+A list is an ordered collection of elements.
+
+#### Abstract Operations
+
+- **append**: Add an element to the end.
+- **insert**: Add an element at a specific index.
+- **remove**: Delete a specific element.
+- **indexing**/**get**: Access an element by its index.
+
+#### Implementation in Python
+
+```{python}
+class List:
+    def __init__(self):
+        self.items = []
+
+    def append(self, item):
+        self.items.append(item)
+
+    def insert(self, index, item):
+        self.items.insert(index, item)
+
+    def remove(self, item):
+        self.items.remove(item)
+
+    def get(self, index):
+        return self.items[index]
+```
+
+#### Example Usage
+
+```{python}
+lst = List()
+lst.append(10)
+lst.append(20)
+lst.insert(1, 15)
+print("Element at index 1:", lst.get(1))
+```
+
+#### Linked List
+
+```{mermaid}
+flowchart LR
+    A["value|next"] --> B["value|next"] --> C["value|null"]
+```
+
+#### Pointer heap
+
+```{mermaid}
+flowchart LR
+    A["PointerHeapList instance"] --> B["size = 3"]
+    A --> C["capacity = 4"]
+    A --> D["memory"]
+
+    D --> M0["addr 0: 10"]
+    D --> M1["addr 1: 20"]
+    D --> M2["addr 2: "]
+    D --> M3["addr 3: None"]
+
+    M2 --> Obj0["SomeObject"]
+```
+
+
+#### Complexity
+
+| Operation      | Array List (Dynamic Array) | Linked List |
+| -------------- | -------------------------- | ----------- |
+| `get(i)`       | O(1)                       | O(n)        |
+| `append(x)`    | O(1) *amortized*           | O(1)        |
+| `insert(i, x)` | O(n)                       | O(n)*       |
+| `remove(i)`    | O(n)                       | O(n)*       |
+| space          | O(n)                       | O(n)        |
+
+
+### Stack
+
+#### Description
+
+A stack is a Last-In-First-Out (LIFO) data structure where elements are added and removed from the same end (the top).
+
+#### Abstract Operations
+
+- **push**: Insert an element at the top.
+- **pop**: Remove the top element.
+- **peek**: Retrieve the top element without removal.
+- **is_empty**: Check if the stack is empty.
+- **is_full**: Check if the stack is full, for fixed size stacks.
+
+```{mermaid}
+graph LR
+    top --> A[0] --> B[1] --> C[2]
+```
+
+#### Implementation in Python
+
+```{python}
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if self.is_empty:
+            raise IndexError("Pop from empty stack")
+        return self.items.pop() if self.items else None
+
+    def peek(self):
+        if self.is_empty:
+            raise IndexError("Peek from empty stack")
+        return self.items[-1] if self.items else None
+
+    @property
+    def is_empty(self):
+        return len(self.items) == 0
+```
+
+#### Example Usage
+
+```{python}
+stack = Stack()
+stack.push(5)
+stack.push(10)
+print("Popped item:", stack.pop())
+```
+
+#### Complexity
+
+* push: O(1) (amortized, relies on resizing of arrays)
+* pop: O(1)
+* peek: O(1)
+* space: O(n)
+
+### Queue
+
+#### Description
+
+A queue is a First-In-First-Out (FIFO) data structure where elements are added at the rear and removed from the front.
+
+#### Abstract Operations
+
+- **enqueue**: Add an element to the rear. (sometimes called "push")
+- **dequeue**: Remove an element from the front. (sometimes called "pop")
+- **peek**: Retrieve the front element without removal.
+- **is_empty**: Check if the queue is empty.
+- **is_full**: Check if the queue is full, for fixed size
+
+```{mermaid}
+flowchart LR
+
+    %% Blocks
+    subgraph B1["Block 1"]
+        A1[ ] --> A2[1] --> A3[2] --> A4[ ]
+    end
+
+    subgraph B2["Block 2"]
+        B1n[3] --> B2n[4] --> B3n[ ] --> B4n[ ]
+    end
+
+    subgraph B3["Block 3"]
+        C1[ ] --> C2[ ] --> C3[ ] --> C4[ ]
+    end
+
+    %% Block links
+    B1 --> B2 --> B3
+
+    %% Pointers
+    front((front))
+    rear((rear))
+
+    front --> A2
+    rear --> B2n
+
+    %% Circular hint (within block)
+    A4 -. wrap .-> A1
+    B4n -. wrap .-> B1n
+```
+
+#### Implementation in Python
+
+```{python}
+class Queue:
+    def __init__(self):
+        self.items = []
+
+    def enqueue(self, item):  # push
+        self.items.append(item)
+
+    def dequeue(self):  # pop
+        return self.items.pop(0) if self.items else None
+
+    def peek(self):
+        return self.items[0] if self.items else None
+
+    @property
+    def is_empty(self):
+        return len(self.items) == 0
+```
+
+#### Example Usage
+```{python}
+queue = Queue()
+queue.enqueue(1)
+queue.enqueue(2)
+print("Dequeued item:", queue.dequeue())
+```
+
+#### Efficient Implementation in Python
+
+```{python}
+from collections import deque
+
+q = deque()
+q.append(1)
+q.popleft()
+```
+
+## Complexity
+
+* enqueue: O(1)
+* dequeue: O(1)
+* Naive implementation (using lists): enqueue/dequeue depends on resizing
+* peek: O(1)
+* space: O(n)
+
+Deque avoids shifting via **block-based structure / ring buffer**
+
+### Trees
+
+#### Description
+
+A tree is a hierarchical recursive data structure where each node may have a parent and several children (0 or more, to be exact).
+
+#### Terminology
+* root  
+* node
+* parent, child(ren)  
+* leaf  
+* subtree  
+
+```{mermaid}
+graph TD
+    A[10] --> B[5]
+    A --> C[15]
+    B --> D[2]
+    B --> E[7]
+    C --> F[12]
+    C --> G[20]
+```
+
+#### Abstract Operations
+
+- **insert(key)**: Add a new node with the given key.
+- **delete(key)**: Remove a node with the specified key.
+- **search(key)**: Find whether a node with the key exists.
+- **traverse()**: Visit nodes in a defined order (inorder, preorder, postorder).
+- children, parent, root, depth, ...: depends on tree type
+
+#### Implementation in Python (BST)
+
+```{python}
+class Node:
+    def __init__(self, key):
+        self.left = None
+        self.right = None
+        self.key = key
+
+class BST:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, key):
+        self.root = self._insert_recursive(self.root, key)
+
+    def _insert_recursive(self, node, key):
+        if node is None:
+            return Node(key)
+        if key < node.key:
+            node.left = self._insert_recursive(node.left, key)
+        else:
+            node.right = self._insert_recursive(node.right, key)
+        return node
+
+    def search(self, key):
+        return self._search_recursive(self.root, key)
+
+    def _search_recursive(self, node, key):
+        if node is None or node.key == key:
+            return node
+        if key < node.key:
+            return self._search_recursive(node.left, key)
+        else:
+            return self._search_recursive(node.right, key)
+
+    def inorder_traversal(self, node):
+        if node:
+            self.inorder_traversal(node.left)
+            print(node.key, end=' ')
+            self.inorder_traversal(node.right)
+```
+
+#### Example Usage
+
+```{python}
+tree = BST()
+for key in [10, 5, 15, 3, 7]:
+    tree.insert(key)
+print("Inorder traversal:", end=' ')
+tree.inorder_traversal(tree.root)
+```
+
+### Graphs
+
+#### Description
+
+A graph is a set of vertices (nodes) connected by edges. Graphs can be directed or undirected and may include cycles.
+
+```{mermaid}
+graph LR
+    A((A)) --- B((B))
+    A --- C((C))
+    B --- D((D))
+    C --- D
+    C --- E((E))
+```
+
+#### Abstract Operations
+- **add_vertex(vertex)**: Add a vertex to the graph.
+- **add_edge(u, v)**: Add an edge connecting vertex u to vertex v.
+- **remove_vertex(vertex)**: Remove a vertex and its associated edges.
+- **remove_edge(u, v)**: Remove an edge between two vertices.
+- **neighbors(vertex)**: Retrieve all vertices connected to a given vertex.
+
+#### Implementation in Python (Adjacency List)
+
+```{python}
+class Graph:
+    def __init__(self):
+        self.adjacency_list = {}
+
+    def add_vertex(self, vertex):
+        if vertex not in self.adjacency_list:
+            self.adjacency_list[vertex] = []
+
+    def add_edge(self, u, v):
+        if u not in self.adjacency_list:
+            self.add_vertex(u)
+        if v not in self.adjacency_list:
+            self.add_vertex(v)
+        self.adjacency_list[u].append(v)
+
+    def neighbors(self, vertex):
+        return self.adjacency_list.get(vertex, [])
+```
+
+#### Example Usage
+```{python}
+graph = Graph()
+graph.add_edge(1, 2)
+graph.add_edge(1, 3)
+print("Neighbors of vertex 1:", graph.neighbors(1))
+```
+
+### Sets
+
+#### Description
+
+A set is an unordered collection of unique elements. They are primarily used for membership testing, eliminating duplicates, and mathematical set operations.
+
+#### Abstract Operations
+
+- **add(element)**: Insert an element (if not present).
+- **remove(element)**: Remove an element.
+- **contains(element)**: Check if an element exists.
+- **union, intersection, difference**: Standard set operations.
+
+#### Implementation in Python
+
+```{python}
+class Set:
+    def __init__(self):
+        self._items = {}
+
+    def add(self, element):
+        self._items[element] = True
+
+    def remove(self, element):
+        if element in self._items:
+            del self._items[element]
+
+    def contains(self, element):
+        return element in self._items
+
+    def intersection(self, other_set):
+        result = Set()
+        for element in self._items.keys():
+            if element in other_set._items:
+                result.add(element)
+        return result
+
+    def union(self, other_set):
+        result = Set()
+        for element in self._items.keys():
+            result.add(element)
+        for element in other_set._items.keys():
+            result.add(element)
+        return result
+
+    @property
+    def items(self):
+        return list(self._items.keys())
+```
+
+#### Example Usage
+```{python}
+set1 = Set()
+set1.add(1)
+set1.add(2)
+print("1 in set1:", set1.contains(1))
+
+set2 = Set()
+set2.add(2)
+set2.add(3)
+print("Set1: ", set1.items)
+print("Set2: ", set2.items)
+print("set1 union set2:", set1.union(set2).items)
+print("set1 intersection set2:", set1.intersection(set2).items)
+```
+
+### Maps
+
+#### Description
+
+A map (or dictionary) is a collection of key-value pairs. It allows fast lookup, insertion, and deletion by key.
+
+```{mermaid}
+flowchart LR
+    H["Hash Function"] --> B0["Bucket 0"]
+    H --> B1["Bucket 1"]
+    H --> B2["Bucket 2"]
+
+    B0 --> K1["key1: val1"]
+    
+    B1 --> K2["key2: val2"]
+    B1 --> K3["key3: val3 (collision)"]
+    
+    B2 --> K4["key4: val4"]
+```
+
+#### Abstract Operations
+
+- **put(key, value)**: Insert or update a key-value pair.
+- **get(key)**: Retrieve the value associated with a key.
+- **remove(key)**: Delete a key-value pair.
+- **contains(key)**: Check if a key exists in the map.
+
+#### Implementation in Python
+
+```{python}
+class Map:
+    def __init__(self):
+        self.store = {}
+
+    def put(self, key, value):
+        self.store[key] = value
+
+    def get(self, key):
+        return self.store.get(key, None)
+
+    def remove(self, key):
+        if key in self.store:
+            del self.store[key]
+
+    def contains(self, key):
+        return key in self.store
+```
+
+#### Example Usage
+```{python}
+mapADT = Map()
+mapADT.put('apple', 10)
+mapADT.put('banana', 20)
+print("Value for 'apple':", mapADT.get('apple'))
+```

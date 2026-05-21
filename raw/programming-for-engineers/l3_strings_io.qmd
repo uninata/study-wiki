@@ -1,0 +1,1342 @@
+# Strings and Files
+
+---
+title: Programming for Engineers
+subtitle: "Lecture 3 - strings and files"
+author: Radoslav Škoviera
+
+format:
+  pdf:
+    code-fold: false
+    pdf-engine: xelatex
+  html:
+    code-fold: false
+jupyter: python3
+toc: true
+
+filters:
+  - quarto
+  - rewrite_paths.lua
+---
+
+
+## Strings
+
+
+### Basics
+Python’s built-in strings (`str`) are **immutable** and store **Unicode text**.
+Indexing (`s[i]`) returns a *new* 1-character `str`, not a separate "char" type.
+CPython (underlying implementation) stores the string in the smallest possible internal “kind” (1/2/4 bytes per code point). Manipulating ASCII-only strings is often faster than "full Unicode" strings.
+**Immutability** means:
+    - assignment to an existing string is not possible
+    - any operation that “changes” a string (concatenation, replace, upper, slicing, etc.) creates a **new** `str` object and copies data
+    - the original reference (variable) will (usually) "point" to the original string and not the new one
+**Slicing creates a copy** (there are no "views" into another string).
+or very large strings, avoid repeated slicing in loops; prefer parsing by indices or using iterators.
+Some methods (`in` and `.find()`) are **optimized** in CPython and are usually faster than writing a manual loop.
+
+
+#### Creating strings
+
+Empty string:
+```{python}
+s0 = ""
+print(s0)
+```
+
+```{python}
+s1 = "a string"
+s2 = 'a string'
+s3 = """a string"""
+s4 = '''a string'''
+
+print(s1, s2, s3, s4)
+```
+
+```{python}
+s5 = """a
+multi-
+line
+string
+"""
+
+print(s5)
+```
+
+Multiline strings are often used as documentation strings in Python code. For example:
+
+```python
+def mandelbrot_fractal(width=800, height=600, max_iterations=100, zoom=1.0):
+    """Generate and return a Mandelbrot set fractal image.
+
+    Renders a visualization of the Mandelbrot set by iterating the formula
+    z = z^2 + c for each pixel coordinate. Points are colored based on how
+    many iterations it takes for the magnitude to exceed 2.
+
+    Args:
+        width (int): Image width in pixels. Default is 800.
+        height (int): Image height in pixels. Default is 600.
+        max_iterations (int): Maximum iteration count for color depth.
+            Higher values reveal more detail. Default is 100.
+        zoom (float): Zoom level; higher values magnify the view.
+            Default is 1.0 (no zoom).
+
+    Returns:
+        PIL.Image: Mandelbrot set fractal image.
+    """
+    xmin, xmax = -2.5 / zoom, 1.0 / zoom
+    ymin, ymax = -1.25 / zoom, 1.25 / zoom
+
+    x = np.linspace(xmin, xmax, width)
+    y = np.linspace(ymin, ymax, height)
+    X, Y = np.meshgrid(x, y)
+    C = X + 1j*Y
+
+    Z = np.zeros_like(C)
+    M = np.zeros(C.shape)
+
+    for i in range(max_iterations):
+        mask = np.abs(Z) <= 2
+        Z[mask] = Z[mask]**2 + C[mask]
+        M[mask] = i
+
+    M = (M / max_iterations * 255).astype(np.uint8)
+    return Image.fromarray(M, mode='L')
+```
+
+Quotation can be used within a string, as long as it is of different style than the "outer" one that delimits the string. Alternatively, the quotes can be also *escaped* with the backslash `\`.
+
+```{python}
+print("This is a string with 'single' and \"double\" quotes")
+print('This is a string with \'single\' and "double" quotes')
+```
+
+#### Control characters
+
+There are a few special control characters that involve a letter "escaped" with a backslash `\`.
+Remember, since backslash is used for control sequences, we need to use a double backslash `\\` to print a single backslash.
+You can also double escape a control sequence to make it "not" a control sequence.
+Putting `r` before the quotation marks (e.g., `r"..."`) makes the string "raw" - escape sequences are ignored.
+This can be sometimes useful - for example, see the `print` with backslash below.
+
+```{python}
+print("Use \\n to print a \n new line", end=".\n")
+print("Use \\r to print a \r carriage return", end=".\n")
+print("Use \\t to print a \t tab", end=".\n")
+print(r"Use \\ to print a \ backslash", end=".\n")
+print("Use \\' to print a \' single quote", end=".\n")
+print('Use \\" to print a \" double quote', end=".\n")
+print("Use \\x41 (\\x<hexcode>)to print a hex character '\x41'\n\t"
+      " (code for letter 'A'=65; 65 to hex=0x41)", end=".\n")
+print("Use \\u0041 (\\u<4 digit hexcode>)to print a unicode character '\u0041'\n\t"
+      " (see unicode chars below)", end=".\n")
+```
+
+
+#### Casting other objects to strings
+
+Other types can be cast to strings using the `str` function.
+
+```{python}
+number_string = str(42)
+print(number_string)
+
+list_string = str([1, 2, 3])
+print(list_string)
+```
+
+Even "complex" objects (instances of classes) can be cast to strings:
+
+```{python}
+print(object())
+```
+
+The behavior of being cast to string for objects is controlled by the `__str__` method.
+
+```{python}
+class MyObject:
+    def __str__(self):
+        return "> my object <"
+
+my_object = MyObject()
+print(my_object)
+```
+
+#### `ord`, `chr`, `hex` functions
+
+Each character in a string is actually stored (in memory) as an integer - [ASCII](https://www.ascii-code.com/) or [Unicode](https://symbl.cc/en/unicode-table) code of the character.
+The `ord` function returns the integer value of a character. Likewise, any integer can be cast to a character using the `chr` function.
+"Standard" ASCII characters have codes from $0$ to $127$ ($0$ to $31$ are control characters and $32$ to $126$ are printable characters).
+The "old" extended ASCII table ($128$ to $255$) is typically not used. For "special" characters, the Unicode table is used.
+
+```{python}
+print(ord("a"), "<- ord of a")
+
+print(chr(97), "<- chr of 97")
+```
+
+Even "non-letter" characters have their code. For example, a newline is stored as a `10` in memory.
+
+```{python}
+print("some text" + chr(10) + "`chr(10)`, i.e., new line was printed before this text")
+print("|> " + chr(32), "<- 'space' character")
+print("|> " + chr(64), "<- 'At' character")
+```
+
+There are also non-printable control characters:
+
+```python
+print("|> " + chr(27), "<- 'escape' control characters (doesn't do anything here)")
+print("|> " + chr(8) * 4, "<- four 'backspace' characters (deletes the text before it)")
+```
+
+Quick tip on how to get the code of a character (without searching on the Internet):
+
+```python
+c = input("Enter a character: ")
+print(f"Code of '{c}':", ord(c))
+```
+
+Or you can print all characters in a range:
+```{python}
+def print_chars_in_range(start, end):
+    for i in range(start, end + 1):
+        print(f"code: {i:3d}, char: {chr(i)}")
+
+print_chars_in_range(97, 103)
+```
+
+Some unicode characters can be printed the same way as ASCII characters.
+
+```{python}
+print("|> " + chr(960) + " <- pi")
+print("|> " + chr(963) + " <- sigma")
+print("|> " + chr(8364) + " <- euro symbol")
+print("|> " + chr(9822) + " <- 'knight' chess piece symbol")
+```
+Alternatively, `\u` control sequence can be used with the hexadecimal code (see below) of the character.
+The code must always be 4 digits (i.e., pad with zeros in front, if necessary).
+```{python}
+print("|> \u03c0 <- pi", "(960 in hex:", hex(960), ")")
+print("|> \u03c3 <- sigma", "(963 in hex:", hex(963), ")")
+print("|> \u20ac <- euro symbol", "(8364 in hex:", hex(8364), ")")
+print("|> \u265e <- 'knight' chess piece symbol", "(9822 in hex:", hex(9822), ")")
+```
+
+It is possible to print even "more complex" characters but that is beyond the scope of this subject.
+For those interested, here is a bit of [Unicode How To](https://docs.python.org/3/howto/unicode.html).
+
+The `hex` function returns the hexadecimal representation of an integer, encoded as a string.
+There are similar functions for octal (`oct`) and binary (`bin`) representations.
+You can also define integers as hex (or oct and bin) numbers using the `0x<hexcode>` (or `0o<octalcode>` and `0b<binarycode>`) prefix.
+For example, `0xff` is `255` in hexadecimal representation. `0o127` is `87` in octal representation.
+`0b1000011` is `67` in binary representation.
+
+```{python}
+print(hex(121), "<- hex representation of 121")
+print(oct(121), "<- octal representation of 121")
+print(bin(121), "<- binary representation of 121")
+print(0x79, "<- 121 written in hex is 0x79")
+print(0o171, "<- 121 written in oct is 0o171")
+print(0b1111001, "<- 121 written in binary is 0b1111001")
+```
+
+##### Fun with string conversions
+
+Caesar cipher is one of the simplest "encryptions" possible.
+Each letter is shifted by a certain number of positions in the alphabet,
+"wrapping around" if necessary.
+To implement this in Python, we can use the `ord` and `chr` functions
+to convert a character to its ASCII code and vice versa.
+
+```{python}
+def caesar_cipher(text, shift):
+    result = []
+    for char in text:
+        if char.isalpha():
+            # Get Unicode code point and shift it
+            shifted = ord(char) + shift
+            # Ensure it wraps around within A-Z or a-z
+            if char.isupper():
+                shifted = (shifted - ord('A')) % 26 + ord('A')
+            else:
+                shifted = (shifted - ord('a')) % 26 + ord('a')
+            result.append(chr(shifted))
+        else:
+            result.append(char)
+    return ''.join(result)
+
+shift = 3
+encrypted = caesar_cipher("Hello, World!", shift)
+print("Encrypted text:", encrypted)
+
+decrypted = caesar_cipher(encrypted, -shift)
+print("Decrypted text:", decrypted)
+```
+
+Bit shift cipher is another possible "encryption" method. There are several ways how to implement it.
+Here is the simplest possible implementation in Python:
+
+```{python}
+def bit_shift_cipher(text, backwards=False):
+    if backwards:
+        result = [chr(ord(char) >> 2) if char != ' ' else ' ' for char in text]
+    else:
+        result = [chr(ord(char) << 2) if char != ' ' else ' ' for char in text]
+    return ''.join(result)
+
+encrypted = bit_shift_cipher("Hello, World! Do you have 123 potatoes?")
+print("Encrypted text:", encrypted)
+
+decrypted = bit_shift_cipher(encrypted, backwards=True)
+print("Decrypted text:", decrypted)
+```
+
+The operators `<<` and `>>` are used for bit shifting. For example, `4 << 2` is `16` (binary `0b00100` to `0b10000` - the `1` is shifted twice to the left) and `4 >> 2` is `1` (binary `0b00100` to `0b0001` - the `1` is shifted twice to the right).
+Of course, the downside of this cipher is that not all shifts will produce printable characters for all letters.
+Can you think of a way to improve it?
+
+#### Boolean value of strings
+
+```{python}
+emtpy_string = ""
+print("Empty string bool value:", bool(emtpy_string))
+
+non_empty_string = "a string"
+print("Non-empty string bool value:", bool(non_empty_string))
+```
+
+#### String concatenation and multiplication
+
+Strings can be simply concatenated using the `+` operator.
+
+```{python}
+s1 = "a"
+s2 = "b"
+s3 = s1 + " + " + s2
+print(s3)
+```
+
+"Other" types can be concatenated to strings after being cast to a string:
+
+```{python}
+s1 = "a"
+number = 42
+s3 = s1 + " + " + str(number)
+print(s3)
+```
+
+Strings can be multiplied using the `*` operator. The multiplication creates a string that is the concatenation of the original string repeated `n` times.
+
+```{python}
+s1 = "Hi! "
+s2 = s1 * 3
+print(s2)
+```
+
+#### Printing strings
+
+The `print` function is fairly simple. You can print on or more items, separated by commas.
+
+```{python}
+s1 = "a"
+s2 = "b"
+print(s1, s2)
+```
+
+You can use the `sep` and `end` parameters to change the separator and end character.
+
+```{python}
+s1 = "a"
+s2 = "b"
+print(s1, s2, sep=" + ", end=" = ")
+```
+
+The `end` argument is useful if you need to change the default `print` behavior - "appending" a new line to the end of the output.
+
+```{python}
+s1 = "a"
+s2 = "b"
+print("there will be an empty line below this", end="\n\n")  # double new line
+print("a text to be overwritten    <- that'll be overwritten", end="\r")  # carriage return
+print("this text will overwrite it")  # carriage return and new line
+print("normal text but with a semi-colon at the end", end=";\n")
+```
+(The above might behave weirdly in PDF, try it in normal Python)
+
+Where did the text from the second print go? It was overwritten by the text from the next print, since `\r` (carriage return) returns the "cursor" to the beginning of the line. Normally, `\r` is used with `\n` (new line) to move the cursor to the beginning of a new line.
+
+
+### String formatting / interpolation
+
+A common task is to assemble a text from values stored in variables. This is called **string formatting** (or **string interpolation** in other languages). One can simply concatenate strings and variables (cast to strings, if needed) using the `+` operator. However, this does not allow for extra formatting (e.g., for numbers) and is slightly slower.
+
+Let's first define some variables we will be using:
+
+```{python}
+string="string"
+another_string="float"
+number=42
+another_number=3.14
+```
+
+#### % operator
+
+In older Python versions `%` was used for string formatting (still used in some places for legacy reasons).
+
+```{python}
+my_string = "a %s and a number %d" % (string, number)
+print(my_string)
+```
+
+A newer alternative is to use the `format` method of a string:
+
+```{python}
+# 03d means 3 digits, zero-padded from the front, if needed
+my_string = "a {} and a number {:03d}".format(string, number)
+print(my_string)
+```
+
+#### `format` method
+
+The `format` method also supports keyword arguments:
+
+```{python}
+my_string = "a {string} and a number {number:d} and a {another_string} number {another_number:.2f}".format(
+    another_number=3.14,
+    number=42,
+    string="string",
+    another_string="float"
+)
+print(my_string)
+```
+
+Notice how the arguments do not need to be in order as they appear in the string. This is useful when we need to supply the value from a dictionary:
+
+```{python}
+my_dict = {
+    "another_number": 3.14,
+    "number": 42,
+    "string": "string",
+    "another_string": "float"
+}
+my_string = "a {string} and a number {number:d} and a {another_string} number {another_number:.2f}".format(**my_dict)
+print(my_string)
+```
+
+#### f-strings
+
+The **newest and recommended approach** is to use the **f-strings** (except when you, for example, need to get the values from a dictionary):
+
+```{python}
+my_string = f"a {string} and a number {number:d} and a {another_string} number {another_number:.2f}"
+print(my_string)
+```
+
+The nice things about the f-strings is that the variable is "in-place" where it will appear in the string, which makes it more intuitive.
+
+The formatting is done by providing the formatting specification after the colon `:`. There is a whole bunch of formatting options. Here we will cover only a few, more can be found [here](https://docs.python.org/3/library/string.html#format-specification-mini-language).
+
+- `s` - string
+- `d` - integer
+- `f` - float
+- `x` - hexadecimal
+- `b` - binary
+
+##### Formatting decimal numbers
+
+It is possible to specify the number of digits for decimals/integers (or total number of characters, including the point, for floats). This number specifies the minimum number of digits (characters), meaning, "longer" numbers are not truncated. However, "shorter" numbers will be padded (by spaces or zeros), so that the number will take at least the specified number of characters in the output. For floating point numbers, a "fixed" number of digits of the fractional part (after the decimal point) can be specified (i.e., the fractional precision).
+
+Let's start with decimal (integer) numbers:
+```{python}
+print(f"|> {342:3d} <- three digits minimum, 'nothing' happens")
+print(f"|> {42:3d} <- notice the empty space before the number")
+print(f"|> {42} <- no padding here")
+print(f"|> {42:03d} <- zero-padded number")
+```
+
+##### Formatting floating point numbers
+
+Next, let's look at floating point numbers. With floats, we are mostly interested in formatting of the fractional part.
+
+```{python}
+# '.4f' means *precisely* four digits after the decimal point
+print(f"|> {3.14:.4f} <- padded by zeros to 4 digits")
+print(f"|> {3.1415:.4f} <- nothing happens, if there are exactly 4 fractional digits")
+print(f"|> {3.14159265:.4f} <- rounded to 4 fractional digits")
+```
+
+The minimum number of characters can be specified as well (digits, the decimal point and potential padding or sign).
+
+```{python}
+print(f"|> {3.14159} <- no formatting")
+print(f"|> {3.14159:5.3f} <- 3 fractional digits, minimum 5 characters")
+print(f"|> {3.14159:6.3f} <- 3 fractional digits, minimum 6 characters")
+print(f"|> {3.14159:06.3f} <- 3 fractional digits, minimum 6 characters (zero-padded)")
+print(f"|> {3.14159:10f} <- at least 10 characters, space padded")
+print(f"|> {3.14159:010f} <- at least 10 characters, zero-padded")
+```
+
+We can also control how the sign will appear.
+"Standard" length with space for positive numbers:
+```{python}
+print(f"|> {3.14159: .4f} <- space for positive, minus for negative numbers")
+print(f"|> {-3.14159: .4f} <- space for positive, minus for negative numbers")
+```
+
+Print plus for positive and minus for negative numbers:
+```{python}
+print(f"|> {3.14159:+.4f} <- space for positive, minus for negative numbers")
+print(f"|> {-3.14159:+.4f} <- space for positive, minus for negative numbers")
+```
+
+We can also sort of "cast" numbers to different "types":
+```{python}
+my_integer = 227
+print(f"The number {my_integer:d} as hexadecimal: {my_integer:x}")
+print(f"The number {my_integer:d} as binary: {my_integer:b}")
+my_float = 1 / 4.2
+print(f"The number {my_float:f} as percent (2 decimal places): {my_float:.2%}")
+```
+
+##### Padding
+
+The padding of numbers or any actually any text can be controlled as well. There are these three options (there is also '=' but we will ignore it):
+
+- `<` : left align
+- `>` : right align
+- `^` : centering
+
+A sequence of characters can be specified before the alignment character to specify the padding (fill) value.
+For example `:-^` specifies centering alignment with dashes used for padding.
+Let's use some of the examples from above (all floats are rounded to 3 fractional digits):
+
+```{python}
+# default behavior:
+print(f"|> {3.14159:11.3f} <- at least 11 chars, right align, space padded")
+# modified alignment or padding:
+print(f"|> {3.14159:->11.3f} <- at least 11 chars, right align, padded with '-'")
+print(f"|> {3.14159:<11.3f} <- at least 11 chars, right align, space padded")
+print(f"|> {3.14159:-<11.3f} <- at least 11 chars, right align, padded with '-'")
+print(f"|> {3.14159:^11.3f} <- at least 11 chars, center align, space padded")
+print(f"|> {3.14159:-^11.3f} <- at least 11 chars, center align, padded with '-'")
+```
+
+Padding strings (works for "general" values). `s` to specify string value can be used but
+it is not necessary.
+
+```{python}
+print(f"|> {'hello':11} <- (default) left align, space padded")
+print(f"|> {'hello':11s} <- with 's', left align (default), space padded")
+print(f"|> {'hello':-<11} <- left align 'forced', padded with '-'")
+print(f"|> {'hello':->11} <- right align, padded with '-'")
+print(f"|> {'hello':^11} <- center align, space padded")
+print(f"|> {'hello':-^11} <- center align, padded with '-'")
+```
+
+### String methods
+
+There are a few useful methods for string manipulation.
+
+#### String length
+First of, we can get the length of a string:
+
+```{python}
+my_string = "a long string made of words"
+print(len(my_string))
+```
+
+#### Splitting and joining
+
+We can split a string into a list of substrings:
+
+```{python}
+my_string = "a long string made of words"
+print(my_string.split(" "))  # the arg is the splitting "character"
+print("list, of, things, separated, by, commas".split(", "))
+```
+
+Alternatively, we can join a list of strings into a single string:
+
+```{python}
+my_string = "a long string made of words"
+my_list = ["a", "long", "string", "made", "of", "words"]
+print(" ".join(my_list))  # the string will be the joining "character"
+print(" + ".join(my_list))  # the string will be the joining "character"
+```
+
+Joining strings with `join` is faster than concatenating them with `+`:
+
+```{python}
+def concat_strings(strings):
+    result = ""
+    for s in strings:
+        result += s
+    return result
+
+def join_strings(strings):
+    return "".join(strings)
+
+strings = [str(i) for i in range(1000)]
+%timeit concat_strings(strings)
+%timeit join_strings(strings)
+```
+
+**Few concatenations (very small N):** `s = a + b + c` or f-strings are fine and the cleanest (most readable code). However, each addition is evaluated separately and allocates a new string (data is copied).
+**Many text pieces (large N, e.g. in a loop):** `list.append(...)` and then `"".join(parts)` is much faster. New string allocation and copying is done in a single step.
+For **streaming text generation:** `io.StringIO()` but thats out of scope of this subject.
+
+#### Case conversion
+
+It is possible to convert all characters in a string to upper or lower case or capitalize just the first letter:
+
+```{python}
+my_string = "This is AlLeGeDlY a Sentence."
+print(my_string.upper())  # all upper case
+print(my_string.lower())  # all lower case
+print(my_string.capitalize())  # first letter in upper case
+print(my_string.title())  # first letter of each word in upper case
+print(my_string.swapcase())  # swapped case for each character
+```
+
+#### Searching for substrings
+
+It is possible to search for parts of a string - there are two methods `find` and `index`. The behavior of the `index` method is similar to the `list` method of the same name. However, you can search not only for individual characters, but also for substrings. Unlike the `index` method, the `find` method does not throw an error when the substring is not found. Instead, it returns `-1`. Searching is case sensitive.
+The search returns the first occurrence of the substring, starting from the left. if needed, the start and end indices for searching can be specified.
+The `find` function also allows a second parameter that controls the start of the search and a third parameter that controls the end of the search.
+Most searching, counting, etc. functions are case sensitive - lower and upper case letters are are treated as different characters.
+```python
+string.index(substring, start=0, end=len(string))
+string.find(substring, start=0, end=len(string))
+# Right-sided functions (reversed processing)
+string.rindex(substring, start=0, end=len(string))
+string.rfind(substring, start=0, end=len(string))
+```
+
+```{python}
+my_string = "This is Some Sentence of Wisdom."
+print(my_string.index("Some"))
+try:
+    print(my_string.index("some"))
+except ValueError:
+    print("Substring not found!")
+```
+
+```{python}
+my_string = "This is Some Sentence of Wisdom."
+print(my_string.find("Some"))
+print(my_string.find("some"))
+
+where_is_is = my_string.find("is")
+print(f"First occurrence of 'is' is at {where_is_is}")
+new_search_start = where_is_is + 1
+print(f"Second occurrence of 'is' is at {my_string.find('is', new_search_start)}")
+print(f"Position of 'is' between index 10 and 15: {my_string.find('is', 10, 15)}")
+```
+
+#### Counting substring occurrences
+
+Similarly to lists, occurrences of substrings can be counted using the `count` method.
+```python
+string.count(substring, start=0, end=len(string))
+```
+
+```{python}
+my_string = "Is this some sentence of wisdom?"
+print(my_string.count("is"))
+```
+
+#### Replacing substrings
+
+Substrings can be replaced in a string with the `replace` method. This method "greedily" replaces all occurrences of the substring. For example,
+if we want to replace every "aha" with "ou" in the string "ahahaha", we will get "ouhou" and not "ououou". This *limitation* affects the count method as well. I.e., `"ahahaha".count("aha")` will return `2` and not `3`.
+```python
+string.replace(oldvalue, newvalue, count)
+```
+
+```{python}
+my_string = "This is Some Sentence of Wisdom."
+# replace a word
+print(my_string.replace("Some", "the"))
+# replace spaces
+print(my_string.replace(" ", ", "))
+# replace first two spaces
+print(my_string.replace(" ", ", ", 2))
+```
+
+#### Starts and ends of string
+
+The functions `startswith` and `endswith` let you check whether a string starts or ends with a substring.
+
+```{python}
+my_string = "**_-_this is a string."
+print(my_string.startswith("**"))
+print(my_string.startswith("_"))
+print(my_string.startswith("**_-_th"))
+print(my_string.endswith("."))
+print(my_string.endswith("string."))
+print(my_string.endswith("a string."))
+```
+
+The function `strip` removes characters from the start and end of a string. It is often used to remove leading and trailing *white space* (new lines, spaces, tabs). To remove the white space, call it without any arguments.
+
+```{python}
+my_string = "   this is a string.   \n\t\n\n"
+print(my_string, "another text")
+print(my_string.strip(), "another text")
+```
+
+It can also be used to remove other characters:
+
+```{python}
+my_string = "Captains log: We arrived at this weird place."
+print(my_string.strip("Captains log: ."))  # notice the dot
+another_string = "*** This is a headline ***"
+print(another_string.strip("*"))  # remove all asterisks
+print(another_string.strip("*").strip())  # remove asterisks and then white space
+print(another_string.strip("* "))  # remove asterisks and space at the same time
+```
+
+#### Checking type of string content
+
+There are several string methods that evaluate whether the string has "some properties" - e.g., whether it contains a number, letters, etc.
+
+```{python}
+print("abcdef".isalpha())  # True, because it only contains letters
+print("ab1cdef".isalpha())  # False, because it contains a number
+print("ab1cdef".isalnum())  # True, because it contains letters and numbers
+print("ab1cdef".isnumeric())  # False, because it contains letters
+print("123".isnumeric())  # True, because it only contains numbers
+print("ab1cdef".isascii())  # True, because it only contains ASCII characters
+print("čožzmif".isascii())  # False, because it contains non-ASCII characters
+print("ABC".isupper())  # True, because it only contains uppercase letters
+print("ABC".islower())  # False, because it contains uppercase letters
+print("abc".islower())  # True, because it only contains lowercase letters
+print("my_var".isidentifier())  # True, because it could be a valid Python identifier
+print("my var".isidentifier())  # False, because it contains a space - not a valid identifier
+```
+
+#### Right-sided functions
+
+Many string methods have their "right-sided" version.
+For example, `rfind` is the right-sided version of `find`.
+Normally, find will return the first occurrence of a substring, starting from the beginning of the string ("left" side).
+The `rfind` will do the same but starting from the end of the string ("right" side).
+
+```{python}
+my_string = "This is Some Sentence of Wisdom."
+print(my_string.find("is"))
+print(my_string.rfind("is"))
+```
+
+You can explore the other right-sided functions on your own (e.g., `rindex`,`rsplit`, `rpartition`, [etc.](https://docs.python.org/3/library/stdtypes.html#textseq)).
+
+#### Translating strings
+
+In Python, `str` objects have a `translate` method. This allows for *efficient* character-level replacement and deletion.
+It is similar to `replace` but only individual characters can be replaced or deleted (i.e., not a substrings).
+To use `translate`, you need to create a *translation table* (or *mapping*).
+This can be done manually, by creating a dictionary where the keys are ordinary values of characters and the values are characters you want to replace them with.
+
+```{python}
+my_string = "You can explore the other right-sided functions on your own (e.g., `rindex`,`rsplit`, `rpartition`)."
+my_mapping = {
+    ord("c"): "b",  # replace every character "c" with "b"
+    ord("`"): "'",  # replace "`" with "'"
+    32: "_",  # replace spaces (ord(" ") == 32) with "_"
+    ord("-"): None   # delete "-"
+}
+print(my_string)
+print(my_mapping)
+print(my_string.translate(my_mapping))
+```
+
+To make things easier, there is also a method `str.maketrans` that allows you to create a translation table from a string, perhaps more intuitively.
+The syntax is:
+
+```python
+str.maketrans("characters_to_replace", "characters_to_replace_with", "characters_to_delete")
+```
+
+The method creates a mapping that will replace each character fom the first string
+with the corresponding character (at the same position) from the second string,
+and will delete each character from the third string.
+
+Here is how we can create the same mapping as in the previous example:
+
+```{python}
+my_string = "You can explore the other right-sided functions on your own (e.g., `rindex`,`rsplit`, `rpartition`)."
+my_mapping = str.maketrans("c` ", "b'_", "-")
+print(my_string)
+print(my_mapping)
+print(my_string.translate(my_mapping))
+```
+
+An example of use is replacement of accented characters with their plain version (e.g., for compatibility reasons).
+
+```{python}
+import os
+
+# accented characters and their plain (ascii) version
+accented_characters = "čšťžýáíéěřťďňôöüúůóČŠŤŽÝÁÍÉĚŘŇÔÖÜÚÓ"
+ascii_alternatives =  "cstzyaieertdnoouuuoCSTZYAIEERNOOUUO"
+
+# load some long text
+with open(os.path.join(os.getcwd(), "rur.txt")) as f:
+    long_text = f.read()
+
+trans = str.maketrans(accented_characters, ascii_alternatives)
+plain_text = long_text.translate(trans)
+
+print("> Original text:")
+print(long_text[:502])
+
+print("\n> Plain text:")
+print(plain_text[:502])
+```
+
+
+```{python}
+print(f"Replacing accented letters in a text with {len(long_text)} characters...")
+%timeit plain_text = long_text.translate(trans)
+```
+
+Another useful example might be "sanitizing" file names - removing characters that are not allowed in file names (e.g., spaces, slashes, etc.)
+
+```{python}
+import string
+
+punctuation = string.punctuation  # '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
+trans_table = str.maketrans(' ', '_', punctuation)
+
+filename = "Report: Q1~2026 (Final!)"
+clean_name = filename.translate(trans_table)
+print(filename)
+print(clean_name)
+```
+
+### Accessing string elements
+
+String elements can be accessed the same way as lists - using square brackets `[]` with an index. Indexing has the same mechanism as in Python lists.
+
+```{python}
+my_string = "a long string made of words"
+print(my_string[0])
+print(my_string[-1])
+print(my_string[:5])
+print(my_string[15:])
+print(my_string[5:25:2])
+```
+
+It is often useful to loop through strings with a for-loop. This is the same as looping through a list (or rather, a tuple, since we cannot assign to a string item).
+
+```{python}
+my_string = "hello world"
+for i, char in enumerate(my_string):
+    print(f"char at pos {i:2d} -> {char}")
+```
+
+Sometimes, a while loop is more appropriate. Usually, when we want to modify the index or the string during the loop.
+
+```{python}
+sentence = "This is a very long sentence where you need to find something."
+def search(sentence, word):
+    i = 0
+    w_len = len(word)
+    n = len(sentence) - w_len
+    while i < n and sentence[i:i + w_len] != word:
+        i += 1
+    if i < n:
+        print(f"Found '{word}' at position {i}")
+    else:
+        print(f"Could not find '{word}'")
+
+search(sentence, "need")
+search(sentence, "sentence")
+search(sentence, "long sen")
+search(sentence, "loop")
+```
+
+For whole word search, this would also work (and actually be more efficient):
+
+```{python}
+def search_word(sentence, word):
+    for sword in sentence.split():
+        if sword == word:
+            print(f"Found '{word}'")
+            break
+    else:  # this gets executed if we don't 'break out' of the loop
+        print(f"Could not find '{word}'")
+
+search_word(sentence, "need")
+search_word(sentence, "loop")
+search_word(sentence, "long sen")  # not a whole word
+```
+
+It is also possible to loop through a string using comprehension syntax.
+This can make the code more readable but it is appropriate only for simple tasks.
+
+```{python}
+sentence = "This is a very long sentence where you need to find something."
+# split the sentence by spaces and loop through 'words'
+words = [word[::-1] for word in sentence.split() if len(word) == 4]
+print(words)
+```
+
+### String similarity
+
+#### Similarity measures
+
+The 'standard' method of comparing strings using `==` provides a **hard** comparison:
+the strings are either the same or not. Sometimes, however, we might need a **soft**
+comparison, i.e., we might want to measure **similarity** of the strings.
+There is a group of string (or any sequence, actually) similarity measures,
+called [**edit distances**](https://en.wikipedia.org/wiki/Edit_distance).
+Examples of edit distances is the [**Levenshtein distance**](https://en.wikipedia.org/wiki/Levenshtein_distance),
+[Hamming distance](https://en.wikipedia.org/wiki/Hamming_distance)
+or the [Longest Common Subsequence](https://en.wikipedia.org/wiki/Longest_common_subsequence_problem).
+They are called edit distances, since they measure how many changes, i.e., 'edits'
+need to be done to one string in order to transform it to the other string.
+These measures differ in what types of edits are allowed:
+- substitutions (change a character into another)
+- deletions
+- insertions
+- transpositions ("moving" characters around; e.g., "abc" vs "bca" - 'a' moved to the end)
+
+Here is an example of the Hamming distance:
+
+```{python}
+def hamming_distance(s1, s2):
+    """
+    Calculate the Hamming distance between two equal-length strings.
+    Returns the number of positions where the characters differ.
+    """
+    if len(s1) != len(s2):
+        raise ValueError("Strings must be of equal length")
+    return sum(c1 != c2 for c1, c2 in zip(s1, s2))
+
+print(hamming_distance("karolina", "kathrina"))
+```
+
+Hamming distance allows only substitutions, therefore, the strings must be of equal length.
+
+
+The `zip(s1, s2)` expects s1, s2 to be "iterables" (i.e., supports iteration - sequential listing of items), just like a for or while loop. Iterable must implement `__iter__` method, which returns an iterator object. Iterator object must implement `__next__` method, which returns the next item in the sequence.
+Lists, tuples, and strings are iterable (custom objects supporting the protocol described above can be also iterables).
+
+The `zip(s1, s2)` returns an iterator of tuples, where the first item is an item in sequence from `s1`, the second item is an item in sequence from `s2` (more inputs can be provided, as long as all of them are iterables):
+
+```{python}
+print(list(zip("karolina", "kathrina")))  # need to convert to list, otherwise we only get the iterator
+```
+
+This code makes a **generator** expression, which can be used as iterables.
+```python
+c1 != c2 for c1, c2 in zip(s1, s2)
+```
+
+The `sum` function returns the sum of all elements in the iterator. Technically, the generator returns a list of `True` or `False` values but they are converted to integers (1 or 0) and then summed.
+
+
+### Text difference using Difflib
+
+There is also a build-in library in Python computing similarity of strings (texts),
+called [`difflib`](https://docs.python.org/3/library/difflib.html).
+
+```python
+matcher = difflib.SequenceMatcher(isjunk=None, a='', b='', autojunk=False)
+matcher.ratio()
+m = matcher.find_longest_match(alo=0, ahi=None, blo=0, bhi=None)
+# m is a named tuple Match(a, b, size)
+# a[m.a:m.a+m.size] is equal to b[m.b:m.b+m.size]
+```
+
+```{python}
+from difflib import SequenceMatcher
+
+def similarity(s1, s2):
+    matcher = SequenceMatcher(None, s1, s2)
+    return matcher.ratio()
+
+def longest_common_subsequence(s1, s2):
+    matcher = SequenceMatcher(None, s1, s2)
+    lcs = matcher.find_longest_match(0, len(s1), 0, len(s2))
+    return s1[lcs.a : lcs.a + lcs.size]
+
+s1 = "This is a very long sentence where you need to find something."
+s2 = "This is a very long sentence."
+s3 = "This is not a can of words where you need to fly something, or whatever."
+
+print(f'{"s1 self-similarity":<20}: {similarity(s1, s1)}')
+print(f'{"s1 self-lcs":<20}: "{longest_common_subsequence(s1, s1)}"')
+print(f'{"s1 to s2 similarity":<20}: {similarity(s1, s2)}')
+print(f'{"s1 to s2 lcs":<20}: "{longest_common_subsequence(s1, s2)}"')
+print(f'{"s1 to s3 similarity":<20}: {similarity(s1, s3)}')
+print(f'{"s1 to s3 lcs":<20}: "{longest_common_subsequence(s1, s3)}"')
+```
+
+<!-- #### Computing difference between texts (ala "Git") -->
+
+## Files
+
+### File path prelude
+
+First step in reading files is to specify the file path. Python allows two ways to manipulate file paths:
+- processing paths as strings, using (mostly) the `os.path` module
+- processing paths using the `pathlib` module
+
+While the `pathlib` module is more powerful, it is also more complex to use. Here, we will stick to the `os.path` module.
+Although, in practice, `pathlib` is recommended, as it is more robust (e.g., cross-platform).
+
+##### Getting the current working directory:
+
+```python
+import os
+
+# Path where 'we are' currently in the file system
+print(os.getcwd())
+```
+
+```python
+# Alternatively, path of the current script
+print(os.path.dirname(__file__))  # __file__ is the path of the current script
+```
+
+##### Combining paths:
+
+```python
+current_dir = os.getcwd()
+sub_directory = "data"
+file_name = "rur.txt"
+
+file_path = os.path.join(current_dir, sub_directory, file_name)
+print(file_path)
+```
+
+##### Relative vs absolute paths
+
+Absolute paths are paths referenced to the "root" of the file system. Relative paths are referenced to the current working directory.
+
+```python
+file_path = "data/rur.txt"
+
+# check if the path is absolute
+print(os.path.isabs(file_path))  # False
+# convert relative path to absolute
+print(os.path.abspath(file_path))
+# convert absolute path to relative
+print(os.path.relpath(os.path.abspath(file_path)))
+# get the absolute path of a file in the parent directory
+print(os.path.abspath(os.path.join("..", "rur.txt")))
+```
+
+##### Checking if a file exists
+
+The `os.path.exists` function checks if a path exists.
+You can also check if a path is a file or a directory.
+
+```python
+file_path = "rur.txt"
+print(os.path.exists(os.path.join("data", file_path)))
+print(os.path.exists(file_path))
+print(os.path.isfile(file_path))
+print(os.path.isdir(file_path))
+```
+
+### Text files
+
+#### File modes
+
+When opening files, it is important to choose the correct mode:
+- **"r"**: Read (default, might be omitted)
+- **"w"**: Write (overwrites/deletes existing files)
+- **"x"**: Write but fail if the file already exists
+- **"a"**: Append (adds to the end of the file)
+- **"r+"**: Read and write (update the file)
+
+#### Opening files
+
+The best/safest way to open a file (whether for reading or writing) is to use the `with` statement. This ensures proper closure of the file.
+
+The syntax is `with open(path, mode) as my_file:`, where `path` is the file path and `mode` is the file mode. The `my_file` variable holds the reference to the opened [file buffer](https://docs.python.org/3/library/io.html#io.IOBase).
+
+The `open(...)` method also takes `encoding` argument (useful only for text files, not binary). For best compatibility, it is recommended to use `encoding="utf-8" (usually the default).
+
+For example:
+
+```python
+# Open a file for reading (default mode)
+with open("example.txt", "r") as f:
+    content = f.read()
+
+# Open a file for writing (this will overwrite the file)
+with open("example.txt", "w") as f:
+    f.write("This is a new file content.\n")
+
+# Open a file for appending
+with open("example.txt", "a") as f:
+    f.write("Appending this line.\n")
+```
+
+In practice, it is a good idea to check if the file exists first. The **write** mode creates a new file, if it does not exist (but overwrites if it does) but the **read** mode will fail if the file does not exist.
+
+```{python}
+if os.path.exists("example.txt"):
+    print("File exists.")
+    with open("example.txt", "r") as f:
+        content = f.read()
+else:
+    print("File does not exist.")
+```
+
+#### Working with files
+
+##### Writing into Files
+
+Writing data to files can be done using the `write()` or `writelines()` methods.
+
+`write` writes a single string to a file:
+
+```{python}
+with open("output.txt", "w") as f:
+    f.write("This is a line.\n")
+    f.write("This is another line.\n")
+```
+
+`writelines` writes a list of strings to a file:
+
+```{python}
+data = ["Line 1\n", "Line 2\n", "Line 3\n"]
+with open("output.txt", "w") as f:
+    f.writelines(data)
+```
+
+##### Reading Files
+
+You can read an entire file at once with `read()` or read it line-by-line with `readline()`. Using `read` is fine from smaller files. However, for larger files, `readline` is a better option
+as it does not load the entire file into memory.
+Of course, this also means it will need to constantly access the file on the disk (which is slower than accessing string data from memory).
+
+```{python}
+# Read the entire file as a single string
+with open("output.txt", "r") as f:
+    content = f.read()
+print(content)
+
+# Read the file line-by-line
+with open("output.txt", "r") as f:
+    for i, line in enumerate(f):
+        print(f"Line {i + 1}: {line.strip()}")
+```
+
+##### Appending Data
+
+Appending is useful when you want to add new data without overwriting the existing content. This is useful for e.g., log files.
+
+```{python}
+for i in range(3):
+    with open("output.txt", "a") as f:
+        f.write(f"An appended line #{i + 1}.\n")
+
+    with open("output.txt") as f:
+        print(f.read())
+```
+
+#### Speed & memory consideration
+
+**Small files:** `f.read()` is simplest / sufficient.
+**Large files:** iterate, i.e.:
+```python
+with open(path, "r", encoding="utf-8") as f:
+    for line in f:
+        ...
+```
+This is memory-friendly and leverages buffering.
+
+
+For large files, **writing** in larger chunks is better - limits memory usage and the number of system calls.
+
+
+### Formatted text files (YAML, JSON)
+
+Python has built-in support for JSON and popular libraries (like PyYAML) for YAML. JSON and YAML are widely used for configuration files, data exchange, and more due to their human-readable formats.
+They basically store dictionary data, which can be nested and contain other data types, like lists.
+
+```{python}
+import json
+import yaml  # Requires installation: pip install PyYAML
+
+# JSON example
+data_json = {"name": "Alice", "age": 28, "occupation": "Engineer"}
+with open("data.json", "w") as f:
+    json.dump(data_json, f, indent=2)
+
+with open("data.json", "r") as f:
+    loaded_json = json.load(f)
+print("Loaded JSON:", loaded_json)
+
+# YAML example
+data_yaml = {"name": "Bob", "age": 34, "occupation": "Designer"}
+with open("data.yaml", "w") as f:
+    yaml.dump(data_yaml, f)
+
+with open("data.yaml", "r") as f:
+    loaded_yaml = yaml.safe_load(f)
+print("Loaded YAML:", loaded_yaml)
+```
+
+### Brief Introduction to Binary Files
+
+Binary files differ from text files as they store data in bytes.
+Binary files are typically not human readable but allow you to create non-text data, such as images, audio, and video.
+
+```{python}
+img = [
+    [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+    [100,   0 ,  0 ,  0,   0 ,  0 ,  0,   0,   0, 100],
+    [  0,   0, 128, 128,   0,   0, 128, 128,   0,   0],
+    [  0,   0, 255, 255,   0,   0, 255, 255,   0,   0],
+    [  0,   0, 255, 255,   0,   0, 255, 255,   0,   0],
+    [  0,   0, 128, 128,   0,   0, 128, 128,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0, 200,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0, 200,   0,   0,   0,   0],
+    [  0,   0,   0,   0, 200, 200,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0, 255,   0,   0,   0,   0,   0,   0, 255,   0],
+    [  0, 255, 255, 255, 255, 255, 255, 255, 255,   0],
+    [  0,   0, 255, 128, 128, 128, 128, 255,   0,   0],
+    [  0,   0,   0, 255, 255, 255, 255,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0, 100, 100,   0,   0,   0,   0],
+]
+
+# Create a simple PPM image (binary format)
+width, height = len(img[0]), len(img)
+
+# w, h = 100, 100
+with open("image.ppm", "wb") as f:
+    f.write(f"P6 {width} {height} 255\n".encode())  # Write PPM header
+    for y in range(height):
+        row = img[y]
+        for x in range(width):
+            # Create a gradient: pixel intensity varies with x-coordinate
+            val = row[x]
+            # For grayscale, output the same value for R, G, and B
+            f.write(bytes([val, val, val]))
+```
+
+```{python}
+from subprocess import run
+# requires sudo apt-get install imagemagick
+run(["convert", "image.ppm", "image.png"])
+```
+
+The created image:
+
+![Image](image.png){width=20%}
+
+## Parsing strings and structured output
+
+### Parsing structured strings
+
+Parsing strings means separating strings into some meaningful "tokens" (bits of string with some predefined meaning).
+There are multiple ways how to do it. We will look at parsing using stacks & queues later, when we discuss stack and queue ADTs.
+Here, we will show how to parse strings with the `split` method.
+
+Let's first load some data:
+
+```{python}
+import os
+table_path = os.path.join(os.getcwd(), "awesome_table.md")
+
+if os.path.exists(table_path):
+    with open(table_path, "r") as f:
+        table = f.read()
+else:
+    print("File 'awesome_table.md' does not exist, for some reason.")
+
+print("Here is some table:")
+print(table)
+```
+
+Now, we want to parse the data:
+1) Firstly, extract field names from the table header
+
+```{python}
+table_lines = table.split("\n")  # split by lines
+
+# Extract field names
+field_names = table_lines[0].strip("| ").split("|")  # split by the vertical line
+field_names = [name.strip() for name in field_names]  # remove whitespace
+
+print("Field names:", field_names)
+```
+
+2) Then, extract data from each row and put these as a separate "record" (dictionary) into a list. Each value for a field is separated by a vertical line (pipe). However, a field might have multiple values, separated by comma. We want to split those and store them in a list.
+
+```{python}
+records = []
+for line in table_lines[2:]:  # skip the header and the separator
+    split_clean_line = line.strip("| ").split("|")
+    if len(split_clean_line) < len(field_names):
+        continue
+    print(f"Line: {split_clean_line}", line)
+    record = {}
+    for i, value in enumerate(split_clean_line):
+        values = value.strip().split(",")
+        if len(values) > 1:
+            record[field_names[i]] = [v.strip() for v in values]
+        else:
+            record[field_names[i]] = values[0]
+    records.append(record)
+```
+
+3) Finally, print the data:
+
+```{python}
+for ri, record in enumerate(records):
+    print(f"Record {ri}:")
+    for field, value in record.items():
+        print(f"\t{field:<17}: {str(value)}")
+```
+
+Be careful when splitting text by a character. Sometimes,
+the same character might be a part of text, e.g.:
+
+```{python}
+# split by comma but only if there is a space between the comma and the next word
+text_to_split_by_comma = "up, down, apple,banana, cucumber"
+print(f"Wrong splitting: {text_to_split_by_comma.split(',')}")
+print(f"Right splitting: {text_to_split_by_comma.split(', ')}")
+```
+
+This was a simple example but sometimes, thing might get more tricky.
+E.g., if comma is used between numbers = don't split, otherwise split.
+That is, we want to split also when comma is used without space between letters.
+In such cases, we can either loop through the text and replace commas
+between numbers with another character (we can then replace it back).
+Or, we can use what's called [regular expressions](https://en.wikipedia.org/wiki/Regular_expression).
+We will, however, not go into that topic here.
+
+### Structured output
+
+we want to print the parsed data back into a 'nice' table:
+
+```{python}
+column_width = 18
+header = '|' + '|'.join([f"{name:^{column_width}}" for name in field_names]) + '|'
+print(header)
+separator = '|' + '|'.join(['-' * column_width for name in field_names]) + '|'
+print(separator)
+rows = []
+for ri, record in enumerate(records):
+    row = []
+    for value in record.values():
+        if isinstance(value, list):
+            row.append(f"{', '.join(value):^{column_width}}")
+        else:
+            row.append(f"{value:^{column_width}}")
+    rows.append('|' + '|'.join(row) + '|')
+print('\n'.join(rows))
+```

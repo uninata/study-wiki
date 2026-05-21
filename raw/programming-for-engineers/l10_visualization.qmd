@@ -1,0 +1,581 @@
+# Output and Visualization in Python
+
+## Overview
+
+1. Terminal-based output and light visual tools (e.g., tqdm, rich, tabulate).
+2. Scientific visualization tools (e.g., matplotlib, plotly, graphviz/networkx, seaborn).
+3. Interactive and GUI/external tools (e.g., pygame, OpenCV, open3d, streamlit).
+
+---
+
+# Part 1: Terminal Output and Minor Visualization Tools
+
+In data and engineering tasks, it’s often useful to enhance console output for progress tracking, formatting, and simple visualization. Here, we will cover some basics, including **progress bars** (with **tqdm**), **rich text/formatting** (with **Rich**), and **ASCII tables** (with **tabulate**), along with basic **logging** techniques.
+
+### Key Tools
+- **tqdm** – wraps Python loops/iterables to display a live progress bar (percentage, ETA, etc.).
+- **Rich** – is a toolkit for generating "rich" formatted console tex. It prints colored/styled text, tables, and even progress bars in the terminal ([The Python Rich Package: Unleash the Power of Console Text – Real Python](https://realpython.com/python-rich-package/)).
+- **tabulate** – formats lists or DataFrames into nice plain-text tables, including markdown ([tabulate · PyPI](https://pypi.org/project/tabulate/#:~:text=Library%20usage)).
+- **logging** – built-in module for logging messages at various levels (DEBUG, INFO, WARNING, etc.) ([Logging HOWTO — Python documentation](https://docs.python.org/3/howto/logging.html)).
+
+## Tqdm: Progress Bars
+
+```{python}
+#| eval: false
+!pip install tqdm
+```
+
+The **tqdm** library provides progress bars for loops. Simply wrap any iterable (like `range(n)`) with `tqdm(...)` and it will show a progress bar with percent, ETA, and iterations per second. You can also use `trange(n)` as shorthand. Tqdm auto-detects `len()` of the iterable, but for unknown-length iterators you can pass `total=...` for accurate progress. You can also pass description and some other options to customize the progress bar.
+
+### Key functions/classes from tqdm
+
+- `tqdm.tqdm(iterable, desc="desc", total=n)` – wrap an iterable to display progress.
+- `tqdm.trange(n)` – shortcut for `tqdm(range(n))`.
+- `tqdm.tqdm.write(msg)` – safely print a message without breaking the bar (i.e., use this instead of `print()`).
+- `tqdm.update(n)` – manually advance the bar by `n`.
+- `tqdm.set_description(desc)` – change the description of the bar.
+- `tqdm.contrib.tenumerate(iterable, desc="desc", total=n)` – shorthand for `tqdm(enumerate(iterable))`.
+**Usage tips:** Add `desc="Task name"` to label the bar. Use `leave=False` to clear bar after completion.
+
+```{python}
+from tqdm import tqdm
+import time
+
+# Example: progress bar over a loop
+for i in tqdm(range(100), desc="Processing"):
+    # Simulate work
+    time.sleep(0.05)
+```
+
+```{python}
+from tqdm.contrib import tenumerate
+import numpy as np
+my_list = np.random.rand(100)
+
+for i, val in tenumerate(my_list, desc="Processing"):
+    # Do something with val
+    my_list[i] = val**2
+    time.sleep(0.05)
+```
+
+## Rich: Formatted Terminal Output
+
+```{python}
+#| eval: false
+!pip install rich
+```
+
+**Rich** enriches terminal output with colors, styles, tables, and animations. It uses a `Console` object to print colored text and rich elements. Common use-cases include colorizing log output, printing **status** messages, and creating nice-looking tables in text form. Rich also has its own progress bar class.
+
+### Key classes/functions
+- `Console` – main class for printing. Use `console = Console()` and `console.print()` to display styled text. Supports `[bold]`/`[underline]` markup and color names.
+- **Markup syntax:** You can wrap text in tags like `[bold green]text[/]`.
+- `Progress` – Rich’s progress bar class for live updates.
+- `Table` – create formatted tables with columns, styles, and title.
+- `rich.logging.RichHandler` – integrate with Python’s logging for colored logs.
+
+Rich **tables** are easy to build: define columns with `Table.add_column(...)` and rows with `Table.add_row(...)`.
+
+```{python}
+from rich.console import Console
+from rich.table import Table
+
+console = Console()
+
+table = Table(title="Employees")
+table.add_column("Name", style="cyan", justify="left")
+table.add_column("Department", style="magenta")
+table.add_column("Salary", justify="right", style="green")
+
+table.add_row("Alice", "Engineering", "$70k")
+table.add_row("Bob", "Data Science", "$65k")
+console.print(table)
+```
+
+Rich **progress bars** allow multi-task progress:
+
+```{python}
+from rich.progress import Progress
+
+with Progress() as progress:
+    task1 = progress.add_task("[cyan]Downloading file 1...", total=100)
+    task2 = progress.add_task("[red]Downloading file 2...", total=100)
+    for i in range(100):
+        progress.update(task1, advance=1)
+        if i % 10 == 0:
+            progress.update(task2, advance=10)
+        time.sleep(0.05)
+```
+
+## ASCII Tables with Tabulate
+
+The **tabulate** library formats tabular data into plain-text tables. It’s useful when you need to display small tables without complex dependencies (e.g., `pandas` actually uses `tabulate` to show tables in the terminal or to convert them to *markdown*). It provides a single function `tabulate(data, headers, tablefmt)` which works on lists, dicts, or pandas DataFrames. Different `tablefmt` (like `"grid"` or `"pipe"`) control the style of borders.
+
+### Key functions from tabulate
+`tabulate(tabular_data, headers=..., tablefmt="grid")` – produce a string of the formatted table.
+- **Data types supported:** lists of lists, lists of dicts, dict of lists, NumPy arrays, pandas DataFrames, etc.
+- **Formatting:** Common `tablefmt` options include `"plain"`, `"grid"`, `"fancy_grid"`, `"pipe"`.
+- **NumPy/DataFrame:** You can directly pass a DataFrame with `headers='keys'` to use column names.
+
+```{python}
+from tabulate import tabulate
+
+data = [
+    ["Alice", 24, "Engineer"],
+    ["Bob",   30, "Data Scientist"],
+    ["Eve",   28, "Analyst"]
+]
+print(tabulate(data, headers=["Name", "Age", "Role"], tablefmt="grid"))
+```
+
+## Logging and Timing Functions
+
+Standard Python provides the **logging** module for leveled messages. Logging calls include the severity level and message.
+
+### Key functions from logging
+- `logging.basicConfig(level=logging.INFO)` – set global log level.
+- `logger = logging.getLogger(name)` – create a logger.
+- `logger.debug/info/warning/error(msg)` – log messages at levels DEBUG, INFO, etc.
+- Customize format with `logging.basicConfig(format="%(levelname)s: %(message)s")`.
+
+```{python}
+import logging, time
+logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+logger = logging.getLogger("demo")
+logger.warning("Starting processing")
+
+start = time.time()
+time.sleep(0.3)
+
+logger.info(f"Finished in {time.time()-start:.2f} seconds")
+logger.debug("Debugging info")
+```
+
+---
+
+# Scientific and Statistical Visualization Tools
+
+```{python}
+#| eval: false
+!pip install plotly
+!pip install networkx
+!pip install graphviz
+!pip install seaborn
+```
+
+- **Matplotlib** – low-level plotting (lines, bars, images) with fine control.
+- **Seaborn** – high-level statistical plots (built on Matplotlib).
+- **Plotly** – interactive, web-based plots (zoom, hover, etc.)
+- **NetworkX/Graphviz** – tools for creating and drawing graph/network structures ([NetworkX  documentation](https://networkx.org/)).
+
+## Matplotlib
+
+**Matplotlib**’s `pyplot` interface is the standard for creating static 2D plots.
+
+### Key functions/classes
+- `plt.figure()`, `plt.subplots()` – create new figure and axes.
+- `plt.plot(x, y, ...)` – line plots (multiple lines, styles).
+- `plt.scatter(x, y, ...)` – scatter plots.
+- `plt.bar(x, height, ...)` – vertical bar chart (or `plt.barh` for horizontal).
+- `plt.hist(data, bins=..., ...)` – histogram.
+- `plt.imshow(matrix, cmap=...)` – display a 2D array as a heatmap.
+- `plt.title()`, `plt.xlabel()`, `plt.ylabel()`, `plt.legend()` – annotate plots.
+
+**Usage:** Usually import as `import matplotlib.pyplot as plt`. After drawing, call `plt.show()` (or `plt.savefig`) to display or save.
+
+#### Line plot
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2*np.pi, 100)
+y = np.sin(x)
+plt.figure()
+plt.plot(x, y, label='sin(x)')
+plt.xlabel("x")
+plt.ylabel("sin(x)")
+plt.title("Line Plot of sin(x)")
+plt.legend()
+plt.show()
+```
+
+#### Scatter plot (point data)
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.random.rand(50)
+y = np.random.rand(50)
+plt.figure()
+plt.scatter(x, y, color='orange')
+plt.title("Random Scatter Plot")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.show()
+```
+
+#### Bar chart
+
+```{python}
+categories = ["A", "B", "C"]
+values = [5, 7, 3]
+plt.figure()
+plt.bar(categories, values, color=['red', 'green', 'blue'])
+plt.title("Bar Chart Example")
+plt.show()
+```
+
+#### Heatmap
+
+```{python}
+data = np.random.rand(10, 10)
+plt.figure()
+plt.imshow(data, cmap='viridis')
+plt.colorbar()
+plt.title("Random Heatmap")
+plt.show()
+```
+
+#### Subplots (multiple plots in one figure)
+
+```{python}
+fig, axs = plt.subplots(1, 2, figsize=(8, 3))
+x = np.linspace(0, 2*np.pi, 100)
+axs[0].plot(x, np.sin(x))
+axs[0].set_title("Sine")
+axs[1].plot(x, np.cos(x))
+axs[1].set_title("Cosine")
+plt.tight_layout()
+plt.show()
+```
+
+## Seaborn: Statistical Plots
+
+**Seaborn** builds on Matplotlib to simplify statistical plotting. It integrates tightly with pandas DataFrames and provides easy functions like `sns.scatterplot`, `sns.barplot`, `sns.boxplot`, `sns.heatmap`, etc. Seaborn also sets better default styles and color palettes for statistical visuals.
+
+### Key functions
+
+- `sns.set_style(...)` – set a seaborn theme (e.g. `"whitegrid"`).
+- `sns.scatterplot(data=..., x=..., y=..., hue=...)` – colored scatter.
+- `sns.lineplot(data=..., x=..., y=...)` – line plot with confidence band.
+- `sns.barplot(x=..., y=..., hue=..., data=...)` – bar chart with grouping.
+- `sns.boxplot(x=..., y=..., data=...)` – box-and-whisker.
+- `sns.heatmap(data, annot=True)` – annotated heatmap (works on DataFrame or 2D array).
+- `sns.pairplot(df)` – grid of scatterplots for all variable pairs.
+
+**Usage:** Usually import as `import seaborn as sns`.
+
+#### Scatter plot
+
+```{python}
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load a sample dataset
+iris = sns.load_dataset("iris")
+sns.scatterplot(data=iris, x="sepal_length", y="sepal_width", hue="species")
+plt.title("Seaborn Iris Scatter Plot")
+plt.show()
+```
+
+#### Bar plot
+
+```{python}
+# Bar plot example
+tips = sns.load_dataset("tips")
+sns.barplot(x="day", y="total_bill", hue="time", data=tips)
+plt.title("Average Bill by Day and Time")
+plt.show()
+```
+
+#### Heatmap
+
+```{python}
+# Heatmap example
+data = np.random.rand(5, 5)
+sns.heatmap(data, annot=True, cmap="coolwarm")
+plt.title("Seaborn Random Heatmap")
+plt.show()
+```
+
+## Plotly: Interactive Plots
+
+**Plotly** provides interactive, web-based plotting. Plotly charts support zooming, panning, and hover info. Its declarative interface comes from **plotly.express** (a high-level API), as well as the lower-level `plotly.graph_objects`.
+
+### Key functions (plotly.express)
+
+- **High-level API:** `px.line`, `px.scatter`, `px.bar`, `px.histogram`, `px.heatmap` (via `px.imshow`), etc.
+- **General Workflow:** `fig = px.some_chart(data, ...)`; then `fig.show()` to render. In a notebook this pops up the interactive chart.
+- **Figure API:** Alternatively, `go.Figure()` and `go.*` traces give more control (less common for quick plots).
+- **Interactivity:** Hover labels, zoom/drag tools, and style templates are built-in.
+
+
+#### Scatter plot
+
+```{python}
+import plotly.express as px
+
+# Scatter plot (using built-in iris dataset)
+df = px.data.iris()
+fig = px.scatter(
+    df, x="sepal_width", y="sepal_length",
+    color="species",
+    ="Iris Sepal Dimensions"
+)
+fig.show()
+```
+#### Line plot
+```{python}
+# Line chart example
+fig = px.line(x=[1, 2, 3, 4], y=[10, 15, 13, 17], title="Simple Line Chart")
+fig.show()
+```
+#### Bar chart
+```{python}
+# Bar chart example
+fig = px.bar(
+    x=['Apples', 'Bananas', 'Cherries'],
+    y=[5, 3, 7], title="Fruit Counts")
+fig.show()
+```
+
+#### Heatmap
+```{python}
+# Heatmap example (via imshow)
+matrix = [[1, 20, 30], [20, 1, 60], [30, 60, 1]]
+fig = px.imshow(
+    matrix,
+    labels={'x':'Col','y':'Row','color':'Value'},
+    title="Example Heatmap")
+fig.show()
+```
+
+#### 3D scatter plot
+```{python}
+points = np.random.rand(3, 100)
+fig = px.scatter_3d(
+    x=points[0], y=points[1], z=points[2],
+    color=points[2], title="3D Scatter Plot")
+fig.show()
+```
+
+## Graphs with NetworkX and Graphviz
+
+For **network/graph** data, **NetworkX** allows creation and analysis of graphs. You can build a graph, add nodes/edges (including attributes like weights), and compute graph algorithms. For simple visualization, NetworkX can draw graphs with `nx.draw()`. For more polished graph diagrams (especially for directed graphs), the **Graphviz** package can be used via `graphviz.Digraph` or `Graph` to generate DOT-language graphs and render them.
+
+### NetworkX usage
+- `G = nx.Graph()` or `nx.DiGraph()` – start a new (undirected/directed) graph.
+- `G.add_node(node)` and `G.add_edge(u, v, weight=...)`. Edges can be tuples.
+- Layouts: `pos = nx.spring_layout(G)` or other layouts to position nodes.
+- Drawing: `nx.draw(G, pos=pos, with_labels=True)` or `nx.draw_networkx(G)`.
+
+### Graphviz usage
+- `from graphviz import Digraph` (for directed) or `Graph` (undirected).
+- `dot.node("A", "Label")`, `dot.edge("A", "B", label="edge label")`.
+- `dot.render("file")` to produce an image file (e.g. PNG or PDF).
+
+```{python}
+import networkx as nx
+import matplotlib.pyplot as plt
+
+# Create and draw a simple NetworkX graph
+G = nx.Graph()
+G.add_edge("Node1", "Node2")
+G.add_edge("Node2", "Node3")
+pos = nx.spring_layout(G)  # force-directed layout
+nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray')
+plt.title("NetworkX Graph")
+plt.show()
+```
+
+```{python}
+from graphviz import Digraph
+
+# Create a simple directed graph with Graphviz
+dot = Digraph(comment="Simple Graph")
+dot.node("A", "Start")
+dot.node("B", "End")
+dot.edge("A", "B", label="goes to")
+```
+
+#### View the graph
+```python
+dot.view("simple_graph")
+```
+
+#### Render (Save to file) the graph
+```python
+dot.render(filename='simple_graph', format='png', cleanup=True, view=True)
+```
+
+The NetworkX graph is displayed inline via Matplotlib, while the Graphviz example generates a PNG file (or PDF, depending on the specs).
+
+---
+
+# External and GUI Visualization Tools
+
+```{python}
+#| eval: false
+!pip install open3d
+!pip install opencv-python
+!pip install pygame
+!pip install streamlit
+```
+
+### Key libraries
+
+- **OpenCV (cv2)** – computer vision library for images and video (reading, displaying, drawing).
+- **Pygame** – 2D graphics and game development library (window, rendering, events).
+- **Open3D** – 3D geometry library (point clouds, meshes, visualization).
+- **Streamlit** – library to build interactive web apps and dashboards from Python scripts.
+
+## OpenCV2: Image and Video
+
+**OpenCV** (imported as `cv2`) is widely used for computer vision. It can load images/videos (`cv2.imread`, `cv2.VideoCapture`), display them in windows (`cv2.imshow`), and draw shapes or text on images (`cv2.rectangle`, `cv2.circle`, etc.). Typical use cases include processing camera feeds or image analysis.
+
+### Key functions
+- `cv2.imread(path)` – load an image into a NumPy array (BGR color).
+- `cv2.imshow(window_name, image)` – display an image in a window.
+- `cv2.waitKey(delay)` – wait for a key press (needed to keep window open).
+- `cv2.imwrite(path, image)` – save an image to file.
+- `cv2.VideoCapture(src)` – open a video file or camera.
+- `cv2.VideoWriter()` – write frames to video.
+- **Drawing:** `cv2.rectangle(img, pt1, pt2, color, thickness)`, `cv2.circle(img, center, radius, color, thickness)`, `cv2.line`, `cv2.putText`, etc.
+
+OpenCV uses **BGR color format** by default.
+
+```{python}
+import cv2
+import numpy as np
+
+# Create a blank image
+img = np.zeros((200, 300, 3), dtype=np.uint8)
+# Draw a blue rectangle and a green circle
+cv2.rectangle(img, (50, 50), (250, 150), (255, 0, 0), 3)
+cv2.circle(img, (150, 100), 40, (0, 255, 0), 2)
+cv2.putText(img, "OpenCV", (60, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+cv2.imshow("Shapes", img)
+cv2.waitKey(1)
+cv2.destroyAllWindows()
+```
+
+For video, one could use `cap = cv2.VideoCapture(0)` to capture from a webcam and `while True: ret, frame = cap.read(); cv2.imshow("Frame", frame)`.
+
+```{python}
+import cv2
+
+cap = cv2.VideoCapture(0)
+while True:
+    ret, frame = cap.read()
+    cv2.imshow("Frame", frame)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+cap.release()
+cv2.destroyAllWindows()
+```
+
+## Pygame: 2D GUI Graphics and Games
+
+**Pygame** is a set of Python modules for creating games and simple GUIs. It provides a display window, drawing primitives, image blitting, and an event loop. Use Pygame for any real-time 2D graphics or game logic (e.g. animations, keyboard input).
+
+### Usage
+- **Initialization:** `pygame.init()`, then `screen = pygame.display.set_mode((width, height))` to create a window.
+- **Event loop:** Typically `for event in pygame.event.get():` to handle `QUIT` or input events.
+- **Drawing:** `screen.fill(color)` to clear; `pygame.draw.rect(screen, color, rect)` or `.circle`, `.line` to draw shapes; `screen.blit(image, pos)` to draw images.
+- **Display update:** `pygame.display.flip()` or `pygame.display.update()`.
+- **Timing:** `clock = pygame.time.Clock()` and `clock.tick(fps)` to control frame rate.
+
+```{python}
+import pygame
+
+pygame.init()
+screen = pygame.display.set_mode((400, 300))
+pygame.display.set_caption("Pygame Example")
+clock = pygame.time.Clock()
+running = True
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    screen.fill((255, 255, 255))  # white background
+    # Draw a red rectangle and a blue circle
+    pygame.draw.rect(screen, (255, 0, 0), pygame.Rect(150, 100, 100, 50))
+    pygame.draw.circle(screen, (0, 0, 255), (100, 150), 30)
+    pygame.display.flip()  # update the display
+    clock.tick(30)  # limit to ~30 FPS
+
+pygame.quit()
+```
+
+## Open3D: 3D Graphics
+
+```{python}
+#| eval: false
+!pip install open3d
+```
+
+**Open3D** is a library for 3D data (point clouds, meshes, geometry processing). It provides visualization tools that open interactive 3D windows. You can load 3D data (e.g. from PLY, OBJ files) and display them. For instance, `o3d.visualization.draw_geometries()` opens a viewer where you can rotate and zoom the model.
+
+### Usage
+- `o3d.geometry.PointCloud` – holds 3D points (and optionally colors, normals).
+- `o3d.geometry.TriangleMesh` – holds mesh vertices, triangles.
+- `o3d.io.read_point_cloud("path.ply")` – load a point cloud from file.
+- `o3d.visualization.draw_geometries([geometry_list])` – visualize the geometry list.
+- **Usage:** After loading or creating the geometry, call the draw function to open a window.
+
+([Point cloud - Open3D primary (unknown) documentation](https://www.open3d.org/docs/latest/tutorial/geometry/pointcloud.html))
+
+```{python}
+import open3d as o3d
+import numpy as np
+
+# Load an example point cloud (Open3D provides sample data)
+pcd_data = o3d.data.PLYPointCloud()
+pcd = o3d.io.read_point_cloud(pcd_data.path)
+print(pcd)  # prints number of points
+
+# draw some meshes
+box = o3d.geometry.TriangleMesh.create_box()
+axis = o3d.geometry.TriangleMesh.create_coordinate_frame()
+
+# Visualize point cloud in a 3D window
+o3d.visualization.draw_geometries([pcd, box, axis], window_name="Point Cloud")
+```
+
+## Streamlit: Browser-Based Interactive Dashboards
+
+**Streamlit** lets you turn Python scripts into interactive web apps without having to write HTML/JS. It’s useful for quick dashboards or demos. You write code like `st.slider`, `st.button`, and Streamlit generates the UI. It runs a local web server, and the app is displayed in your browser.
+
+### Key functions
+- `st.title()`, `st.header()`, `st.text()` – display text and headers.
+- `st.write()` – versatile text/markdown display.
+- Widgets: `st.button(label)`, `st.slider(label, min, max)`, `st.checkbox()`, `st.selectbox()`, etc.
+- Charts: `st.line_chart(data)`, `st.map(df)`, or any Matplotlib/Plotly figure via `st.pyplot(fig)` or `st.plotly_chart(fig)`.
+- **Usage:** The script is run top-to-bottom on each interaction. To display the app, you run `streamlit run script.py` in a terminal.
+
+```{python}
+import streamlit as st
+import pandas as pd
+
+st.title("Simple Dashboard")
+
+df = pd.DataFrame({
+    "x": [1, 2, 3, 4],
+    "y": [10, 20, 15, 25]
+})
+st.line_chart(df.set_index("x"))  # interactive line chart
+
+if st.checkbox("Show raw data"):
+    st.write(df)
+```
+
+### Usage
+
+Streamlit requires the script to be executed by running the `streamlit run <script_name>.py` command in a terminal.
+
+Running this script with Streamlit will open a local web interface. It’s not a visualization *library* in the usual sense, but rather a framework to host your visualizations and controls in a browser.
+

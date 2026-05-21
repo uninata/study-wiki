@@ -1,203 +1,112 @@
 # Machine Translation Evaluation
 
-**Summary**: Automated and manual evaluation metrics for assessing translation quality, including BLEU, METEOR, TER, and human evaluation methodologies.
+**Summary**: Evaluation methods for MT, emphasizing manual evaluation design, BLEU, confidence intervals, LLM judges, and why metric choice can change research conclusions.
 
 **Course**: nlp
 
-**Sources**: 01-eval.pdf
+**Sources**: 01-eval.pdf, nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf
 
-**Last updated**: 2026-04-17
+**Last updated**: 2026-05-21
 
 ---
 
 ## Overview
 
-Machine translation evaluation requires balancing automated efficiency with human judgment accuracy. No single metric perfectly correlates with human assessment, so practitioners typically combine multiple metrics.
+Machine translation evaluation is part of the research loop: systems are trained, outputs are generated, and evaluation results guide the next model or data change (source: nlp/01-eval.pdf). The course frames MT quality pragmatically: many systems aim for output that is worth reading or worth editing, while publication without editing remains risky in many settings (source: nlp/01-eval.pdf).
 
-### Metric Classification
-
-- **Reference-Based**: Compare hypothesis against one or more reference translations (BLEU, METEOR, TER)
-- **Reference-Free**: Assess translation without references (rare; challenging)
-- **Automated**: Fast, repeatable, language-independent (BLEU, METEOR, TER)
-- **Manual**: Ground truth but expensive and time-consuming (human evaluation)
+The central warning is that metrics drive research. BLEU helped shape the phrase-based MT era, and other metrics or human protocols can push different system choices (source: nlp/01-eval.pdf).
 
 ---
 
-## BLEU (Bilingual Evaluation Understudy)
+## Manual Evaluation
 
-**Definition**: Corpus-level n-gram precision metric with brevity penalty (source: 01-eval.pdf).
+Manual evaluation can be reference-based, source-based, or both. It can also be sentence-level, document-level, or document-aware; the protocol matters because sentence-level scoring can hide document-level phenomena such as consistency and discourse coherence (source: nlp/01-eval.pdf).
 
-### Computation
+### Common Scoring Techniques
 
-$$\text{BLEU} = \text{BP} \cdot \exp\left(\sum_{n=1}^{N} w_n \log p_n\right)$$
+- **Adequacy and fluency**: Annotators judge whether the output preserves meaning and whether it reads naturally in the target language (source: nlp/01-eval.pdf).
+- **Direct Assessment (DA)**: Annotators use a continuous scale, often asking how well the MT output expresses the meaning of the reference or source (source: nlp/01-eval.pdf).
+- **Relative ranking**: Annotators compare outputs from multiple systems instead of assigning absolute scores (source: nlp/01-eval.pdf).
+- **Comprehension or task-based tests**: Evaluation asks whether users can perform a task using the translation, such as answering questions from a translated text (source: nlp/01-eval.pdf).
+- **Error annotation**: Gray-box protocols such as MQM or error span annotation identify specific error categories and spans instead of producing only a scalar score (source: nlp/01-eval.pdf).
 
-where:
-- $p_n$ = precision of n-grams of length $n$ (typically $N=4$)
-- $w_n$ = weight for n-gram order (uniform: $w_n = 1/N$)
-- $\text{BP}$ = brevity penalty if output shorter than reference
-
-### Brevity Penalty
-
-$$\text{BP} = \begin{cases} 1 & \text{if } c > r \\ e^{1-r/c} & \text{if } c \leq r \end{cases}$$
-
-- $c$ = total hypothesis length across corpus
-- $r$ = reference length
-- Prevents favoring overly short translations
-
-### Strengths
-- **Fast**: Computes in milliseconds; suitable for development iteration
-- **Language-Independent**: Works for any language pair
-- **Widely Adopted**: De facto standard; allows comparison across systems
-- **Corpus-Level**: Aggregates judgments across all test sentences
-
-### Weaknesses
-- **Reference Dependence**: Penalizes correct paraphrases; requires multiple references for robustness
-- **Poor Sentence-Level Correlation**: BLEU unreliable on short segments (< 10 words)
-- **Insensitive to Grammaticality**: Focuses on n-gram overlap; missing grammar errors
-- **Imperfect Correlation**: Doesn't always track human judgment (especially for distant language pairs)
-
-### Practical Range
-- Typical system scores: 20-40 BLEU points (language pair dependent)
-- Difference of 1-2 points often not significant
-- Relative comparison more reliable than absolute scores
+Manual evaluation is expensive, subjective, hard to reproduce, and highly sensitive to experimental design. Still, it is necessary when automatic scores do not reflect the real user objective (source: nlp/01-eval.pdf).
 
 ---
 
-## METEOR (Metric for Evaluation of Translation with Explicit ORdering)
+## BLEU
 
-**Definition**: Sentence-level metric incorporating stemming, synonymy, and word order (source: 01-eval.pdf).
+BLEU is a reference-based automatic metric built from the geometric mean of modified $n$-gram precisions, usually for $1$-grams through $4$-grams, multiplied by a brevity penalty (source: nlp/01-eval.pdf):
 
-### Components
+$$
+\text{BLEU} = \text{BP} \cdot \exp\left(\sum_{n=1}^{N} w_n \log p_n\right)
+$$
 
-1. **Exact Matches**: Same word form in hypothesis and reference
-2. **Stemming Matches**: Morphological variants (e.g., "walk" ↔ "walking")
-3. **Synonym Matches**: WordNet or other synonym resources
-4. **Paraphrase Matches**: Acceptable alternative phrasings
-5. **Word Order**: Penalty for reordering between reference and hypothesis
+where $p_n$ is modified precision for $n$-grams and the weights are often uniform, $w_n = \frac{1}{N}$ (source: nlp/01-eval.pdf).
 
-### Aggregation
+The brevity penalty discourages outputs that are too short:
 
-- **Sentence-Level**: Precision, recall, and order penalty computed per sentence
-- **Corpus-Level**: Weighted average across all sentences
+$$
+\text{BP} =
+\begin{cases}
+1 & \text{if } c > r \\
+e^{1-r/c} & \text{if } c \leq r
+\end{cases}
+$$
 
-### Advantages over BLEU
-- **Better Human Correlation**: Empirically correlates more strongly with human judgment
-- **Morphological Robustness**: Recognizes word variants; benefits morphologically rich languages
-- **Semantic Awareness**: Synonymy and paraphrase capture meaning beyond n-grams
-- **Interpretability**: Components provide insight into translation errors
+where $c$ is the candidate length and $r$ is the effective reference length over the test set (source: nlp/01-eval.pdf).
 
-### Limitations
-- **Resource Dependence**: Requires synonym/paraphrase databases; coverage varies by language
-- **Computational Cost**: Slower than BLEU due to stemming and synonym lookups
-- **Language Coverage**: Designed for language pairs with available NLP tools
+### BLEU Caveats
 
----
+BLEU scores are not reliably comparable across languages, test sets, numbers of references, tokenization schemes, or evaluation implementations. The lecture explicitly recommends fixed implementations such as sacreBLEU when BLEU must be used (source: nlp/01-eval.pdf).
 
-## TER (Translation Edit Rate)
-
-**Definition**: Minimum number of edits (insertions, deletions, substitutions, shifts) to transform hypothesis into reference (source: 01-eval.pdf).
-
-### Edit Operations
-
-- **Insertion**: Add word not in hypothesis
-- **Deletion**: Remove word from hypothesis
-- **Substitution**: Replace word with different word
-- **Shift**: Move sequence of words to different position (captures reordering)
-
-### Computation
-
-$$\text{TER} = \frac{\text{# edits}}{\text{# reference words}}$$
-
-- **Output Range**: 0 (perfect) to infinity (very bad)
-- **Lower is Better**: Unlike BLEU (where higher is better)
-
-### Shift Operations
-- Explicit handling of reordering; reduces edit distance compared to substitution-only
-- Example: German SVO → English VSO reordering = 1 shift vs. multiple substitutions
-
-### Strengths
-- **Interpretable**: Edit distance directly represents correction effort
-- **Reordering Explicit**: Shifts penalize wrong word order separately
-- **Meaningful**: Number of edits correlates with human effort to post-edit
-
-### Weaknesses
-- **Computational Cost**: Computing minimum edit distance with shifts is NP-hard; approximations used
-- **Shift Ambiguity**: Multiple valid shift sequences; score varies with algorithm
-- **Reference Dependence**: Single reference may miss valid paraphrases
+BLEU is also weak at sentence level, sensitive to surface word forms, and can miss valid paraphrases. The lecture shows that many correct output tokens may be unconfirmed by a single reference, leaving space for systems to differ in quality without BLEU seeing it (source: nlp/01-eval.pdf).
 
 ---
 
-## Human Evaluation
+## Other Automatic Signals
 
-**Definition**: Native or expert speakers assess translation quality via standardized protocols (source: 01-eval.pdf).
+The evaluation lecture discusses several directions for fixing BLEU's surface-form bias: lemma or deep-lemma evaluation, character-sequence metrics such as chrF, gappy sequence metrics such as BEER, and post-edited references such as HTER (source: nlp/01-eval.pdf).
 
-### Evaluation Dimensions
+The source-syntax Transformer paper evaluates translation with multiple automatic metrics: BLEU, CharacTER, BEER, and chrF3; it uses paired bootstrap resampling through MT-ComparEval to assess significance (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf). This is a useful example of the course principle that one scalar metric is rarely enough for trustworthy MT conclusions.
 
-#### Adequacy
-- **Question**: Does the translation convey the meaning of the source?
-- **Scale**: Typically 1-5 (1=not at all, 5=perfectly)
-- **Interpretation**: Semantic equivalence; ignores fluency
-
-#### Fluency
-- **Question**: Is the translation natural and grammatical in the target language?
-- **Scale**: Typically 1-5
-- **Interpretation**: Target-language quality; ignores meaning fidelity
-
-#### Ranking
-- **Method**: Direct comparison; "which translation is better?"
-- **Advantage**: Avoids absolute scale bias; more reliable than individual scores
-- **Output**: Ordinal ranking (A > B > C or pairwise comparisons)
-
-### Inter-Annotator Agreement
-- **Metric**: Kappa (categorical) or Spearman correlation (ordinal)
-- **Typical**: 0.6-0.8 for well-trained annotators
-- **Variation**: Depends on task clarity and annotator expertise
-
-### Advantages
-- **Ground Truth**: Reflects actual translation quality
-- **Fine-Grained**: Captures nuances (style, register, cultural appropriateness)
-- **Flexible**: Can assess any aspect of translation quality
-
-### Disadvantages
-- **Expensive**: Labor-intensive; typically $100-500 per 1000 words
-- **Slow**: Evaluation turnaround measured in days/weeks
-- **Inconsistent**: Annotator disagreement requires adjudication
-- **Non-Reproducible**: Different annotators produce different scores
-
-### Best Practices
-- **Multiple Annotators**: ≥2 annotators per segment for consensus
-- **Training**: Detailed guidelines and practice annotation
-- **Quality Checks**: Inter-annotator agreement monitoring
-- **Statistical Significance**: Report confidence intervals or significance tests
+Reference-free automatic evaluation is called quality estimation in the lecture; it aims to judge translation quality without a reference translation (source: nlp/01-eval.pdf).
 
 ---
 
-## Metric Selection Strategy
+## Empirical Confidence Intervals
 
-### Development Phase
-- **Primary**: BLEU (fast, standard)
-- **Secondary**: METEOR (human correlation check)
-- **Frequency**: Evaluate after each model change
+For deterministic MT systems, the lecture recommends bootstrap resampling to estimate confidence intervals without assuming a parametric distribution (source: nlp/01-eval.pdf):
 
-### Final Evaluation
-- **Automatic**: BLEU + METEOR + TER for comprehensive picture
-- **Human**: Validation on held-out test set (200-500 segments typical)
-- **Analysis**: Error analysis to identify systematic failures
+1. Sample many test sets by drawing sentences with replacement while preserving test-set size.
+2. Score each sampled test set.
+3. Sort the scores and drop the top and bottom $2.5\%$.
+4. Use the remaining range as an empirical $95\%$ confidence interval.
 
-### Trade-offs
+This matters because small score differences may be noise from the chosen test sentences rather than genuine system improvements (source: nlp/01-eval.pdf).
 
-| Aspect | BLEU | METEOR | TER | Human |
-|--------|------|--------|-----|-------|
-| Speed | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐ |
-| Human Correlation | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Language Independence | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Interpretability | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Cost | ⭐ (seconds) | ⭐ (seconds) | ⭐ (minutes) | ⭐⭐⭐⭐ (hours) |
+---
+
+## LLMs as Judges
+
+The lecture treats LLM-based evaluation as promising but risky. In the shown error-span annotation experiment, prompt details affected false positives and recall, chunking mattered strongly, and the measured precision/recall against human annotations was poor in the reported setup (source: nlp/01-eval.pdf).
+
+The practical lesson is to be careful with LLM judges: larger or reasoning-capable models may produce richer outputs, but adversarial and nonsensical-answer tests show that models can still assign overly generous scores when the evaluation setup is flawed (source: nlp/01-eval.pdf).
+
+---
+
+## End-to-End vs Component Evaluation
+
+Component scores do not always correlate with whole-system translation quality. The lecture's alignment example shows that a preprocessing/alignment setup with better alignment error rate need not produce better BLEU, so component-level improvements should be checked against the final MT objective (source: nlp/01-eval.pdf).
+
+This is especially relevant for [[nlp/word-alignment]], [[nlp/phrase-based-machine-translation]], and [[nlp/transformers-nmt]]: a change can make an internal module look better while the generated translation gets worse.
 
 ---
 
 ## Related Pages
 
-- [[nlp/phrase-based-machine-translation]] (MERT tuning uses BLEU)
+- [[nlp/phrase-based-machine-translation]]
 - [[nlp/neural-machine-translation]]
+- [[nlp/word-alignment]]
+- [[nlp/transformers-nmt]]
 - [[nlp/course-overview]]

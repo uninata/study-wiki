@@ -1,31 +1,31 @@
 # Phrase-Based Machine Translation (PBMT)
 
-**Summary**: Core PBMT pipeline covering phrase extraction from word-aligned data, phrase scoring, reordering models, MERT tuning, and the Moses framework.
+**Summary**: Core PBMT pipeline covering phrase extraction from word-aligned data, phrase scoring, stack-based decoding, reordering models, MERT tuning, and the Moses framework.
 
 **Course**: nlp
 
-**Sources**: 05-pbmt.pdf, 05-pbmt-decoding-Koehn-2009.pdf, 05-pbmt-decoding-Haddow-2010.pdf, 00-requirements-and-topics.pdf
+**Sources**: 05-pbmt.pdf, 05-pbmt-decoding-Koehn-2009.pdf, 05-pbmt-decoding-Haddow-2010.pdf, 00-requirements-and-topics.pdf, nlp/Phrase-based Model - MT Talks.md
 
-**Last updated**: 2026-04-17
+**Last updated**: 2026-05-21
 
 ---
 
 ## Overview
 
-Phrase-Based Machine Translation (PBMT) extends word-based SMT by translating contiguous sequences of words rather than individual words. PBMT dominated statistical machine translation from the early 2000s until neural approaches emerged around 2015.
+Phrase-Based Machine Translation (PBMT) extends word-based SMT by translating contiguous sequences of words rather than individual words. In PBMT, a "phrase" is any contiguous sequence observed in the training data; it does not need to be a linguistic phrase such as a noun phrase or verb phrase (source: nlp/Phrase-based Model - MT Talks.md).
 
 ---
 
 ## Phrase Extraction Algorithm
 
 ### Key Idea
-Rather than translating word-by-word, translate multi-word phrases directly from a phrase translation table.
+Rather than translating word-by-word, translate multi-word spans directly from a phrase translation table. The phrase table is a probabilistic dictionary extracted from word-aligned parallel data (source: nlp/Phrase-based Model - MT Talks.md).
 
 ### Extraction Procedure
 
 **Input**: Word-aligned sentence pair
 
-**Process** (source: 05-pbmt.pdf):
+**Process** (source: 05-pbmt.pdf; source: nlp/Phrase-based Model - MT Talks.md):
 1. Identify all contiguous phrase pairs consistent with word alignment
 2. Phrase pair (f̄, ē) is **consistent** if:
    - No alignment links cross phrase boundaries
@@ -49,7 +49,7 @@ Extracted phrases:
 ```
 
 ### Consistency Constraint
-Ensures phrase pairs respect alignment structure; prevents pairing unrelated words across boundaries.
+Ensures phrase pairs respect alignment structure: all alignment points from the selected source span must land inside the selected target span and vice versa (source: nlp/Phrase-based Model - MT Talks.md). If either side has an alignment link outside the candidate span, the phrase pair is rejected.
 
 ---
 
@@ -65,6 +65,8 @@ $$P(\bar{e}|\bar{f}) = \frac{\text{count}(\bar{f}, \bar{e})}{\sum_{\bar{e}'} \te
 
 **Inverse Translation Probability**:
 $$P(\bar{f}|\bar{e}) = \frac{\text{count}(\bar{f}, \bar{e})}{\sum_{\bar{f}'} \text{count}(\bar{f}', \bar{e})}$$
+
+The MT Talks phrase-model note frames this as maximum-likelihood estimation: count how often phrase $\bar{f}$ is translated as $\bar{e}$ and divide by the total count of $\bar{f}$ in the extracted phrase table (source: nlp/Phrase-based Model - MT Talks.md).
 
 ### Lexical Weighting
 
@@ -86,6 +88,16 @@ where $a_{ij}$ indicates alignment between word positions.
 ---
 
 ## Reordering Models
+
+Before scoring a complete sentence, the decoder first looks up translation options for every source span; these options behave like pieces that must jointly cover the full source sentence (source: nlp/Phrase-based Model - MT Talks.md).
+
+### Stack-Based Beam Search
+
+PBMT decoding starts from an empty hypothesis with no source words covered. Each expansion chooses an uncovered source span, selects one of its translation options, appends the target phrase, and marks the source span as covered in a Boolean coverage vector. A hypothesis is complete when the coverage vector contains no uncovered positions (source: nlp/Phrase-based Model - MT Talks.md).
+
+Because the search space grows rapidly with sentence length, practical PBMT decoders group partial hypotheses into stacks by the number of covered source words and prune each stack to keep only the best-scoring hypotheses. Comparing hypotheses with the same coverage size avoids unfairly ranking short partial translations above longer ones simply because they have accumulated fewer model decisions (source: nlp/Phrase-based Model - MT Talks.md).
+
+Decoders also use a future-cost estimate for the untranslated part of the sentence. Without this estimate, the search tends to translate easy spans first and can prune away hypotheses that are locally worse but globally better; the future cost can be precomputed efficiently with dynamic programming (source: nlp/Phrase-based Model - MT Talks.md).
 
 ### Distance-Based Reordering
 
@@ -183,7 +195,7 @@ Moses is the standard open-source PBMT implementation.
 
 ### Typical System
 - Language model: KenLM with 5-grams
-- Reordering: Lexicalized, distance ≤ 6
+- Reordering: Lexicalized, distance $\leq 6$
 - Decoding: Beam search, width 200-1000
 - Performance: 20-40 BLEU (language pair dependent)
 

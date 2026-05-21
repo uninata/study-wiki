@@ -4,9 +4,9 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_vcdim.pdf, ls26_seminar_vc_dim_solutions.pdf
+**Sources**: ls26_lecture_vcdim.pdf, ls26_seminar_vc_dim_solutions.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-04-14
+**Last updated**: 2026-05-16
 
 ---
 
@@ -19,6 +19,8 @@ A hypothesis class $\mathcal{H}$ **shatters** a set of points $\{x_1, \ldots, x_
 $$\text{VCdim}(\mathcal{H}) = \max\{d : \exists \{x_1, \ldots, x_d\} \text{ that } \mathcal{H} \text{ shatters}\}$$
 
 Important: we only need to find **one** set of size $d$ that can be shattered, but we must show that **no** set of size $d+1$ can be shattered.
+
+The restriction of $\mathcal{H}$ to a finite set $C = \{c_1,\ldots,c_m\}$ is the set of label vectors $\mathcal{H}_C = \{(h(c_1),\ldots,h(c_m)) : h \in \mathcal{H}\}$; shattering means $|\mathcal{H}_C| = 2^{|C|}$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). Intuitively, if $\mathcal{H}$ can realize every labeling on a large finite set, then labels observed on part of that set give no information about unseen labels; this is the same failure mode behind the no-free-lunch theorem (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## Examples of VC Dimension
 
@@ -44,6 +46,8 @@ $$\text{VCdim}(\mathcal{H}) \leq \log_2 |\mathcal{H}|$$
 
 Proof: shattering $d$ points requires $|\mathcal{H}| \geq 2^d$ distinct hypotheses.
 
+The inequality can be loose: threshold functions over a finite ordered domain can have many distinct hypotheses but VC dimension $1$, because no two ordered points can realize the $(0,1)$ labeling under one-sided thresholds (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ### $\mathcal{H} = \{\text{sign}(\sin(ax)) \mid a \in \mathbb{R}\}$
 
 **$\text{VCdim} = \infty$** despite having only one parameter!
@@ -51,6 +55,14 @@ Proof: shattering $d$ points requires $|\mathcal{H}| \geq 2^d$ distinct hypothes
 Use points $x_i = 10^{-i}$. For any labeling, construct $a = \pi(1 + \sum \hat{y}_i 10^i)$ where $\hat{y}_i = \frac{1-y_i}{2}$. The key identity $\sin(\pi(k+t)) = (-1)^k \sin(\pi t)$ ensures correct classification at each point.
 
 **Takeaway**: VC dimension measures the effective complexity of a hypothesis class, which is not simply the number of parameters.
+
+## Growth Function and Effective Size
+
+The **growth function** measures how many distinct labelings $\mathcal{H}$ can realize on the hardest set of $m$ points:
+
+$$\tau_{\mathcal{H}}(m) = \max_{C \subset \mathcal{X}: |C|=m} |\mathcal{H}_C|$$
+
+If $\mathrm{VCdim}(\mathcal{H}) = d$, then $\tau_{\mathcal{H}}(m) = 2^m$ for $m \leq d$, but Sauer's lemma says that once $m > d$, the growth becomes polynomial rather than exponential in $m$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). This is the technical bridge from infinite $\mathcal{H}$ to finite-class-like generalization: the class may contain infinitely many functions globally, but on any finite sample it has controlled effective size (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## The Fundamental Theorem of Statistical Learning
 
@@ -69,6 +81,8 @@ $$m = \mathcal{O}\left(\frac{d + \ln(1/\delta)}{\varepsilon^2}\right)$$
 
 Compare with finite $\mathcal{H}$: $m = \mathcal{O}\left(\frac{\ln(|\mathcal{H}|/\delta)}{\varepsilon^2}\right)$. The VC dimension replaces $\ln |\mathcal{H}|$ as the measure of complexity.
 
+In the realizable case, the textbook states the sharper qualitative dependence $m = \mathcal{O}\left(\frac{d\log(1/\varepsilon)+\log(1/\delta)}{\varepsilon}\right)$, while agnostic PAC and uniform convergence use the $\varepsilon^{-2}$ rate above (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). The distinction matters because realizability is a stronger assumption than the course's usual excess-risk setting.
+
 ## Structural Risk Minimization (SRM)
 
 The bias-complexity tradeoff: larger $\mathcal{H}$ → smaller approximation error but larger estimation error. SRM resolves this by (source: ml-fundamentals/ls26_lecture_vcdim.pdf):
@@ -81,6 +95,7 @@ This is the theoretical motivation for [[ml-fundamentals/svm|SVM's]] maximum mar
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[pac-learning]]
 - [[empirical-risk-minimization]]
 - [[svm]]

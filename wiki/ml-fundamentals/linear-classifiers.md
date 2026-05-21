@@ -4,15 +4,17 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_linear.pdf
+**Sources**: ls26_lecture_linear.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-16
 
 ---
 
 ## Linear Regression (Baseline)
 
 Linear predictor: $h(\mathbf{x}; \mathbf{w}, b) = \mathbf{w}^\top \mathbf{x} + b$
+
+The textbook treats affine predictors as linear functions after augmenting each input with a constant coordinate $1$, so the bias $b$ can be folded into an expanded weight vector (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). Binary classifiers, regression predictors, and logistic regression all reuse this same score $\langle \mathbf{w},\mathbf{x}\rangle + b$ with different output maps and losses (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 **ERM with squared loss** gives a closed-form solution (source: ml-fundamentals/ls26_lecture_linear.pdf):
 
@@ -29,6 +31,8 @@ where $\mathbf{X} = [\mathbf{x}_1^\top\; 1;\; \ldots;\; \mathbf{x}_m^\top\; 1] \
 $$h(\mathbf{x}; \mathbf{w}, b) = \text{sign}(\mathbf{w}^\top \mathbf{x} + b) = \begin{cases} +1 & \text{if } \mathbf{w}^\top \mathbf{x} + b \geq 0 \\ -1 & \text{otherwise} \end{cases}$$
 
 Parameterized by weight vector $\mathbf{w} \in \mathbb{R}^d$ and bias $b \in \mathbb{R}$.
+
+For halfspaces in $\mathbb{R}^d$, $\mathrm{VCdim} = d+1$, so plain ERM has sample complexity controlled by the input dimension (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). In the separable case, ERM can be implemented by finding any hyperplane satisfying $y_i(\langle \mathbf{w},\mathbf{x}_i\rangle+b)>0$; in the nonseparable case, exact 0/1-loss ERM is computationally hard, which motivates surrogate losses such as logistic and hinge loss (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## Multiclass Linear Classifier
 
@@ -72,6 +76,8 @@ where:
 
 The number of iterations depends **only on $R$ and $\gamma$**, not on $m$ or $d$.
 
+The textbook's perceptron analysis states the same margin dependence as $(R B)^2$, where $B$ is the norm of the smallest separator satisfying $y_i\langle \mathbf{w},\mathbf{x}_i\rangle \geq 1$; equivalently, this is controlled by the radius-to-margin ratio (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ### Exam relevance
 
 The perceptron is important because: (1) it is the simplest online learning algorithm, (2) the Novikoff bound connects to margin theory and [[svm|SVMs]], (3) it only works for separable data — for non-separable data, use [[svm|soft-margin SVM]] or logistic regression.
@@ -94,6 +100,8 @@ This is a **smooth convex** optimization problem (no closed-form solution; use g
 
 The loss function $\log(1 + \exp(-yt))$ is called the **logistic loss** (or cross-entropy loss). Like the hinge loss used in [[svm|SVMs]], it is a convex upper bound on the 0/1 loss.
 
+Logistic regression can be read as a probabilistic halfspace: when $|\langle \mathbf{w},\mathbf{x}\rangle|$ is large it behaves like a confident hard classifier, while near the decision boundary it outputs probabilities close to $1/2$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ### Plug-in Bayes predictor
 
 Under 0/1 loss, the MAP rule gives (source: ml-fundamentals/ls26_lecture_linear.pdf):
@@ -113,6 +121,7 @@ The learned posterior $p(y=+1 \mid \mathbf{x})$ directly gives calibrated probab
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[svm]]
 - [[empirical-risk-minimization]]
 - [[generative-learning]]

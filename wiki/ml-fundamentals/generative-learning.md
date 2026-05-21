@@ -4,9 +4,9 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_genlearn.pdf, ls26_seminar_genlearn.pdf
+**Sources**: ls26_lecture_genlearn.pdf, ls26_seminar_genlearn.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-16
 
 ---
 
@@ -19,11 +19,19 @@
 
 Generative models are more informative (can generate synthetic data, handle missing features) but require stronger assumptions. If the model is correct, they can be more sample-efficient.
 
+The textbook frames this as **parametric density estimation**: instead of directly learning a predictor, a generative approach assumes a parametric form for the data distribution and estimates its parameters (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). This can be useful when the model itself is needed for interpretation, missing-data handling, later downstream tasks, or computationally simpler estimation, but it can be harder than directly optimizing prediction accuracy (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Maximum Likelihood Estimation (MLE)
 
 Given i.i.d. data $T_m$ from a parametric model $p(\mathbf{x}, y; \theta)$, the MLE is:
 
 $$\hat{\theta} = \arg\max_{\theta} L(T_m, \theta) = \arg\max_{\theta} \sum_i \log p(\mathbf{x}_i, y_i; \theta)$$
+
+MLE is ERM with the **log-loss**:
+
+$$\ell(\theta,\mathbf{x}) = -\log p_{\theta}(\mathbf{x})$$
+
+so maximizing likelihood is equivalent to minimizing empirical negative log-likelihood (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). If the true distribution $p$ is outside the assumed model family, the best parameter is the one closest in relative entropy/KL divergence, so model misspecification creates irreducible approximation error even with unlimited data (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ### Gaussian mixture model (seminar worked example)
 
@@ -54,6 +62,8 @@ where $\hat{p}(y|\mathbf{x}) = \frac{\hat{p}(y)\, \hat{p}(\mathbf{x}|y)}{\sum_k 
 $$\hat{h}(\mathbf{x}) = \arg\max_y \hat{p}(y|\mathbf{x}) = \arg\max_y \left[\log \hat{p}(y) - \frac{(x - \hat{\mu}_y)^2}{2\hat{\sigma}^2}\right]$$
 
 The normalization constant cancels; only the log-prior and the Mahalanobis distance matter.
+
+Two textbook examples show how generative assumptions reduce the number of parameters. Naive Bayes assumes conditional independence of features given the class, reducing a binary-feature conditional distribution from exponentially many parameters to $O(d)$ parameters (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). Linear Discriminant Analysis assumes class-conditionals are Gaussian with shared covariance, which makes the log-likelihood ratio linear in $\mathbf{x}$ and therefore yields a linear Bayes classifier (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
 
 ## Plug-in Conditional Risk (Prediction Uncertainty)
 
@@ -95,6 +105,7 @@ See [[empirical-risk-minimization#exam-tip-approximation-error-questions]] for t
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[shared/bayes-classifier]]
 - [[empirical-risk-minimization]]
 - [[prediction-evaluation]]

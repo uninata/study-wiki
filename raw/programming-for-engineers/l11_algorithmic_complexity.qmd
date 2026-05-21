@@ -1,0 +1,872 @@
+# Algorithmic Complexity
+
+## Runtime of an Algorithm
+
+Assignment, access, arithmetic operations, comparison typically take constant time (specific time depends on the hardware, programming language, etc.).
+Loops take $n$ times the time of the operations inside the loop (plus some small overhead).
+Time taken by other functions depends on the implementation of the function (i.e., sum takes linear time).
+
+### 'Counting' Operations
+
+```{python}
+def sum_array(arr):
+    n = len(arr)  # get length + assignment: 2 operations
+    total = 0     # assignment: 1 operation
+    for i in range(n):  # n-iterations
+        total += arr[i] # access + addition + assignment: 3 operations
+    return total
+```
+
+$3 + n \times 3$ operations
+
+```{python}
+def bubble_sort(arr):
+    n = len(arr)  # get length + assignment: 2 operations
+    for i in range(n):  # n-iterations
+        for j in range(0, n-i-1):  # (n - i)-iterations
+            if arr[j] > arr[j+1]:  # 2 times access + comparison: 3 operations
+                # 2 times access + 2 times assignment: 4 operations
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr
+```
+
+$2 + \frac{n \times n}{2} \times \left(3 + 4\right)$ operations
+
+
+```{python}
+def binary_search(arr, target):
+    lo, hi = 0, len(arr) - 1    # 2 assignments
+    while lo <= hi:             # log(n)-iterations (halving), 1 comparison
+        mid = (lo + hi) // 2    # assignment, addition, integer division
+        if arr[mid] == target:  # access + comparison
+            return True
+        if arr[mid] < target:   # access + comparison
+            lo = mid + 1        # addition + assignment
+        else:
+            hi = mid - 1        # addition + assignment
+    return False
+```
+
+$2 + \log(n) \times \left(4 + 2 + 2 + 2 + 2\right)$ operations
+
+
+### Measuring the computation time
+
+```{python}
+import time
+import numpy as np
+from matplotlib import pyplot as plt
+import sys
+sys.setrecursionlimit(10000)
+
+def random_access_math(arr):
+    n = len(arr)
+    i = n // 2
+    return np.exp(np.sqrt(arr[0]) + np.log(arr[i]**2) + 1)
+
+def array_square_log_sum(arr):
+    total = 0
+    for x in arr:
+        total += np.log(x ** 2)
+    return total
+
+def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr
+
+def quick_sort(arr):
+    # quick sort with while loop
+    if len(arr) <= 1:
+        return arr
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[0]
+    left = [x for x in arr if x < pivot]
+    right = [x for x in arr if x > pivot]
+    return quick_sort(left) + [pivot] + quick_sort(right)
+
+
+def time_function(func, *args, **kwargs):
+    start = time.time()
+    func(*args, **kwargs)
+    end = time.time()
+    return end - start
+
+
+def evaluate_n_plot_runtimes(ax, n_values):
+    runtimes_constant = []
+    runtimes_linear = []
+    runtimes_bubble = []
+    runtimes_quick = []
+    for n in n_values:
+        rand_array = np.random.rand(int(n))
+
+        runtime = time_function(random_access_math, rand_array)
+        runtimes_constant.append(runtime)
+
+        runtime = time_function(array_square_log_sum, rand_array)
+        runtimes_linear.append(runtime)
+
+        runtime = time_function(bubble_sort, rand_array)
+        runtimes_bubble.append(runtime)
+
+        runtime = time_function(quick_sort, rand_array)
+        runtimes_quick.append(runtime)
+
+    ax.plot(n_values, runtimes_constant, label='Access and Arithmetic')
+    ax.plot(n_values, runtimes_linear, label='Sum')
+    ax.plot(n_values, runtimes_quick, label='Quick Sort')
+    ax.plot(n_values, runtimes_bubble, label='Bubble Sort')
+    ax.legend(loc='upper left')
+    ax.set_xlabel('Input Size')
+    ax.set_ylabel('Runtime (s)')
+
+scales = [1, 10, 100, 200]
+
+for scale in scales:
+    fig, ax = plt.subplots(figsize=(6, 6))
+    n_values = np.sort(np.unique(np.r_[1, scale:10 * scale:10j]))
+    evaluate_n_plot_runtimes(ax, n_values)
+
+plt.tight_layout()
+plt.show()
+```
+
+In the graphs above, there might be some sudden jumps in runtime. This might be caused by, e.g., some other processes running in the background and suddenly requiring more resources. This is one of the issues with directly measuring runtime. Multiple runs might be used to smooth out the noise. However, this is might not be feasible and in general, not a good approach to assess the complexity of an algorithm.
+
+### *Bounding* the runtime
+
+How else can we analyze the runtime?
+
+```{python}
+n_values = np.r_[1, 200:2000:10j]
+runtimes_bubble = []
+for n in n_values:
+    rand_array = np.random.rand(int(n))
+    runtime = time_function(bubble_sort, rand_array)
+    runtimes_bubble.append(runtime)
+
+len_n_values = len(n_values)
+mid_n = n_values[len_n_values // 2]
+coef_linear = 1.2 * runtimes_bubble[len_n_values // 2] / mid_n
+coef_quad = runtimes_bubble[len_n_values // 2] / mid_n**2
+
+fig, ax = plt.subplots(figsize=(8, 8))
+
+ax.plot(n_values, runtimes_bubble, label='Bubble Sort')
+ax.plot(n_values, coef_quad * n_values**2, label=f'{coef_quad:.2e} * n^2')
+ax.plot(n_values, 1.2 * coef_quad * n_values**2, label=f'{1.2 * coef_quad:.2e} * n^2')
+ax.plot(n_values, coef_linear * n_values, label=f'{coef_linear:.2e} * n')
+ax.legend(loc='upper left')
+ax.set_xlabel('Input Size')
+ax.set_ylabel('Runtime (s)')
+
+plt.tight_layout()
+plt.show()
+```
+
+## Rates of Growth of Functions
+
+Let's look at the 'basic bunch' - from constant to quadratic function.
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.special import factorial
+
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+ns = [5, 10, 50, 100]
+
+def plot_growth_rates(x, ax):
+    ax.plot(x, np.ones_like(x), label='c')
+    ax.plot(x, np.log(x), label='log n')
+    ax.plot(x, x, label='n')
+    ax.plot(x, x*np.log(x), label='n log n')
+    ax.plot(x, x**2, label='n^2')
+
+def make_layout():
+    ax.set_xlabel('Input Size')
+    ax.set_ylabel('Operations')
+    ax.autoscale()
+    ax.legend()
+
+for n, ax in zip(ns, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    plot_growth_rates(x, ax)
+    make_layout()
+
+plt.tight_layout()
+plt.show()
+```
+
+Now, let's add in the cubic function.
+
+```{python}
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+ns = [5, 10, 50, 100]
+
+for n, ax in zip(ns, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    plot_growth_rates(x, ax)
+    ax.plot(x, x**3, label='n^3')
+    make_layout()
+plt.show()
+```
+
+What happens when $c^n$ 'joins' the game?
+
+```{python}
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+ns = [5, 10, 50, 100]
+
+for n, ax in zip(ns, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    plot_growth_rates(x, ax)
+    ax.plot(x, x**3, label='n^3')
+    ax.plot(x, 2**x, label='2^n')
+    make_layout()
+plt.show()
+```
+
+And what about $n!$?
+
+```{python}
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+ns = [5, 10, 50, 100]
+
+for n, ax in zip(ns, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    plot_growth_rates(x, ax)
+    ax.plot(x, x**3, label='n^3')
+    ax.plot(x, 2**x, label='2^n')
+    ax.plot(x, factorial(x), label='n!')
+    make_layout()
+plt.show()
+```
+
+### Do constants matter?
+
+```{python}
+from matplotlib import pyplot as plt
+import numpy as np
+
+
+def linear(n):
+    return n
+
+def n_squared(n):
+    return n**2
+
+def n_squared_plus_const(n, c=3):
+    return n**2 + c
+
+def n_squared_times_const(n, c=3):
+    return c *n**2
+
+n_values = [10, 1000, 1000000, 1000000000]
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+
+for n, ax in zip(n_values, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    ax.plot(x, n_squared(x), label='n^2')
+    ax.plot(x, n_squared_plus_const(x), label='n^2 + c')
+    ax.plot(x, n_squared_plus_const(x, c=1000), label='n^2 + 1000')
+    ax.plot(x, n_squared_times_const(x), label='n^2 * c')
+    ax.plot(x, n_squared_times_const(x, c=1000), label='n^2 * 1000')
+    ax.plot(x, linear(x), label='n')
+    ax.plot(x, x**3, label='n^3')
+    ax.set_xlabel('Input Size')
+    ax.set_ylabel('Operations (log scale)')
+    ax.legend(loc='upper left', fontsize='x-small')
+
+plt.show()
+```
+
+Since $x^3$ overshadows the other functions, let's try log-scale
+
+```{python}
+n_values = [10, 1000, 1000000, 1000000000]
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+
+for n, ax in zip(n_values, axes.flatten()):
+    x = np.linspace(1, n, 100)
+    ax.semilogy(x, n_squared(x), label='n^2')
+    ax.semilogy(x, n_squared_plus_const(x, c=3), label='n^2 + 3')
+    ax.semilogy(x, n_squared_plus_const(x, c=1000), label='n^2 + 1000')
+    ax.semilogy(x, n_squared_times_const(x, c=3), label='n^2 * 3')
+    ax.semilogy(x, n_squared_times_const(x, c=1000), label='n^2 * 1000')
+    ax.semilogy(x, linear(x), label='n')
+    ax.semilogy(x, x**3, label='n^3')
+    ax.set_xlabel('Input Size')
+    ax.set_ylabel('Operations (log scale)')
+    ax.legend(loc='upper left', fontsize='x-small')
+
+plt.show()
+```
+
+Did you notice what is happening with all variants of $n^2$ as we increase $n$? Let's try some very large values.
+
+```{python}
+fig, ax = plt.subplots(figsize=(8, 8))
+x = np.linspace(1, 1e80, 100)
+ax.semilogy(x, n_squared(x), label='n^2')
+ax.semilogy(x, n_squared_plus_const(x, c=3), label='n^2 + 3')
+ax.semilogy(x, n_squared_plus_const(x, c=1000), label='n^2 + 1000')
+ax.semilogy(x, n_squared_times_const(x, c=3), label='n^2 * 3')
+ax.semilogy(x, n_squared_times_const(x, c=1000), label='n^2 * 1000')
+ax.semilogy(x, linear(x), label='n')
+ax.semilogy(x, x**3, label='n^3')
+ax.set_xlabel('Input Size')
+ax.set_ylabel('Operations (log scale)')
+ax.legend(loc='upper left', fontsize='x-small')
+
+plt.show()
+```
+
+## Asymptotic complexity
+
+### Asymptotic analysis
+
+**Asymptotic analysis** is an analysis of the behavior of a function in the limit as the input approaches infinity.
+In the limit, lower order terms and constant factors can be ignored, as the **highest order term dominates**.
+
+For example, if $f(n) = n^3 + n^2 + n + 1$, then as $n \to \infty$, $f(n) \approx n^3$.
+
+For algorithms, we use **asymptotic analysis** to analyze the behavior of an algorithm in the limit as the input size approaches infinity. We use **asymptotic notation** to denote the behavior of an algorithm (result of the analysis).
+
+We are typically interested in the **upper bound** of the complexity, which is denoted as $O(\cdot)$ (e.g., $O(n^3)$).
+For a function $f(n)$ to be upper bounded by a function $g(n)$, i.e., $f(n)~is~O(g(n))$ (read: 'f is the order of g' or 'f is big O of g'), there must exist a constant $c > 0$ and $n_0 > 0$ such that for all $n \geq n_0$, $f(n) \leq c \cdot g(n)$.
+
+(In general case, absolute value should be used but complexity of any algorithm is always positive.)
+
+We can also estimate the **lower bound**, which is denoted as $\Omega(f(n))$ (read: 'f is at least the order of g' or 'f is big Ω of g').
+In this case, there must exist a constant $c > 0$ and $n_0 > 0$ such that for all $n \geq n_0$, $f(n) \geq c \cdot g(n)$. Or in other words, $g(n)~is~O(f(n))$.
+
+'Tight' bounds are denoted as $\Theta(f(n))$. In this case, there must exist $n_0 > 0$ such that for all $n \geq n_0$, $c_1 \cdot g(n) \leq f(n) \leq c_2 \cdot g(n)$ for some positive constants $c_1$ and $c_2$.
+Alternatively, $f(n)~is~\Theta(g(n))$ iff $g(n)~is~O(f(n))$ and $f(n)~is~O(g(n))$.
+
+### Asymptotic complexity 'classes'
+
+#### $O(c)$: constant time
+- dictionary lookup, arithmetic operations, variable assignment, array access
+
+#### $O(\log n)$: logarithmic time
+- binary search, tree depth
+- extremely good for very large inputs (consider $\log_2 10e^{10} \approx 33$)
+
+#### $O(n)$: linear time
+- array traversal - linear search, sum, min, max
+
+#### $O(n \log n)$: linearithmic time
+- divide-and-conquer sorting (merge sort, quick sort)
+- for very large inputs, only *slightly* worse than linear time
+
+#### $O(n^c)$: polynomial time
+- matrix multiplication, bubble sort, algorithms requiring nested loops in general (n-D array processing)
+
+##### $O(n^2)$: quadratic time
+- worst case for quick sort
+
+##### $O(n^3)$: cubic time
+
+#### $O(c^n)$: exponential time
+- branched recursion
+- tree traversal ($2^(n - 1)$ leaves for binary tree of depth $n$)
+- usually extremely bad - avoid if possible
+- however, consider the actual input size - for a given $n$, tree height (assuming balanced) is only $\log n$ and with "early" exit, recursive traversal with an exponential runtime can be relatively fast.
+
+#### $O(n!)$: factorial time
+- permutations
+
+### Time complexity vs space complexity
+
+Besides time complexity, one might also be interested in space complexity. Space complexity is the amount of memory used by an algorithm.
+
+| Algorithm | Time complexity | Space complexity |
+|----------|-----------------|------------------|
+| Linear search | $O(n)$ | $O(1)$ |
+| Binary search | $O(\log n)$ | $O(1)$ |
+| Merge sort | $O(n \log n)$ | $O(n)$ |
+| Quick sort | $O(n \log n)$ | $O(n)$ |
+| Bubble sort | $O(n^2)$ | $O(1)$ |
+| Selection sort | $O(n^2)$ | $O(1)$ |
+| Insertion sort | $O(n^2)$ | $O(1)$ |
+
+**In-place** algorithms have space complexity of $O(1)$.
+
+Although, nowadays, space complexity is less interesting, unless designing algorithms for specialty hardware, like embedded systems.
+
+
+### Examples of runtimes, given complexity 'class'
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+import tabulate
+from scipy.special import factorial
+
+orders = {'O(1)': lambda n: 1,
+          'O(log n)': lambda n: np.log(n),
+          'O(n)': lambda n: n,
+          'O(n log n)': lambda n: n * np.log(n),
+          'O(n^2)': lambda n: n**2,
+          'O(2^n)': lambda n: 2**n,
+          'O(n!)': lambda n: factorial(n)
+}
+n_orders = np.arange(0, 7)
+table = []
+for no in n_orders:
+    n = 10**no
+    runtimes = [n]
+    for order, func in orders.items():
+        ops = func(n) * 1e-6
+        if np.isfinite(ops) and ops > 0 and (ops < 3600 * 24):
+            runtimes.append(f'{ops:.6f} s')
+        else:
+            runtimes.append('–')
+    table.append(runtimes)
+
+print(table)
+print(tabulate.tabulate(
+    table,
+    headers=['Input Size'] + [order for order in orders],
+    tablefmt="pretty",
+    numalign="right"
+))
+```
+
+# Runtime optimization techniques
+
+## Profiling
+
+[cProfile](https://docs.python.org/3/library/profile.html) can be used to profile code.
+
+
+```{python}
+def find_larger_than_sum(lst, s):
+    for i in range(len(lst)):
+        if lst[i] > sum(lst):
+            return i
+
+lst = np.random.randint(-100, 200, 10000).tolist()
+s = sum(lst) - 50
+```
+
+The basic usage is pretty simple:
+```{python}
+import cProfile
+
+cProfile.run('find_larger_than_sum(lst, s)')
+```
+
+Sorting the results:
+
+```{python}
+cProfile.run('find_larger_than_sum(lst, s)', sort='cumtime')
+```
+
+Alternatively, using the context manager:
+
+```{python}
+with cProfile.Profile() as pr:
+    find_larger_than_sum(lst, s)
+    pr.print_stats(sort='cumtime')
+```
+
+Using pstats:
+
+```{python}
+import pstats
+from pstats import SortKey
+
+with cProfile.Profile() as pr:
+    find_larger_than_sum(lst, s)
+    pr.dump_stats('pstats.txt')
+
+stats = pstats.Stats('pstats.txt')
+stats.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(10)
+```
+
+## Optimization tips & tricks
+
+```{python}
+def profile_func(func_string):
+    cProfile.run(func_string, 'pstats.txt')
+    stats = pstats.Stats('pstats.txt')
+    stats.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(10)
+```
+
+### Pre-allocation
+
+If it is possible to **predict** the size of the (array) output, it is best to pre-allocate it.
+
+```{python}
+def cumulative_sum(lst):
+    cumsum = [lst[0]]
+    for i in range(1, len(lst)):
+        cumsum.append(cumsum[-1] + lst[i])
+    return cumsum
+
+lst = np.random.randint(1, 100, 1000000).tolist()
+
+profile_func('cumulative_sum(lst)')
+```
+
+Now, let's pre-allocate the variable for the result.
+
+```{python}
+def cumulative_sum_prealloc(lst):
+    cumsum = [0] * len(lst)
+    cumsum[0] = lst[0]
+    for i in range(1, len(lst)):
+        cumsum[i] = cumsum[i - 1] + lst[i]
+    return cumsum
+
+profile_func('cumulative_sum_prealloc(lst)')
+```
+
+### Complex conditions
+
+In case of complex conditions (compounded from multiple statements),
+take advantage of the short-circuit (lazy) evaluation:
+`and` *exits* when the first `False` is encountered and `or` *exits* when the first `True` is encountered. Therefore putting **expensive** statements last might save some time.
+
+```{python}
+def is_square(n):
+    r = np.sqrt(n)
+    return int(r) == r
+
+def find_squares_larger_than(lst, s):
+    result = []
+    for v in lst:
+        if is_square(v) and v > s:
+            result.append(v)
+    return result
+
+lst = np.random.randint(1, 100, 1000000).tolist()
+
+profile_func('find_squares_larger_than(lst, 50)')
+```
+
+Now, let's swap the terms in the condition:
+
+```{python}
+def find_squares_larger_than_optimized(lst, s):
+    result = []
+    for v in lst:
+        if v > s and is_square(v):
+            result.append(v)
+    return result
+
+profile_func('find_squares_larger_than_optimized(lst, 50)')
+```
+
+Notice that there are less calls to `is_square` in the second function.
+
+### Pre-computations before loops
+
+If possible, pre-compute values that are used in the loop.
+
+```{python}
+def move_by_vector(obj_list, direction, speed):
+    for i in range(len(obj_list)):
+        obj_list[i] += direction / np.linalg.norm(direction) * speed
+
+obj_list = np.random.randint(1, 100, (100000, 3)).tolist()
+direction = np.random.randint(1, 100, 3).tolist()
+speed = np.random.randint(1, 100)
+
+profile_func('move_by_vector(obj_list, direction, speed)')
+```
+
+Now, let's pre-compute the normalized direction vector and the velocity before the loop:
+
+```{python}
+def move_by_vector_optimized(obj_list, direction, speed):
+    normalized_direction = direction / np.linalg.norm(direction)
+    velocity = normalized_direction * speed
+    for i in range(len(obj_list)):
+        obj_list[i] += velocity
+
+profile_func('move_by_vector_optimized(obj_list, direction, speed)')
+```
+
+### Use of efficient data structures
+
+In case of membership tests, a Python `set` or `dict` is $O(1)$ on average instead of $O(n)$ for a list.
+
+### Caching
+
+If it is possible to cache results, it is best to do so (use `lru_cache` or dictionaries).
+
+## Parallelization
+
+If an operation on the individual elements of an array can be computed for each element independently (i.e., operation on an element does not require the result from computation on the previous element), then it might be possible to parallelize it.
+
+However, in such case, one must be aware of the **overhead** of parallelization (e.g., extra memory usage, extra communication, etc.).
+
+```{python}
+def window_sum(lst, window_size):
+    numel = len(lst)
+    result = [0] * (numel - window_size + 1)
+    for i in range(numel - window_size + 1):
+        result[i] = sum(lst[i:i + window_size])
+    return result
+
+lst = np.random.randint(1, 100, 100000).tolist()
+
+%timeit -n 1 -r 1 window_sum(lst, 1000)
+```
+
+Now, let's parallelize it. The `-1` in `Parallel(n_jobs=-1)` means to use all available cores.
+
+```{python}
+from joblib import Parallel, delayed
+
+def window_sum_parallel(lst, window_size):
+    numel = len(lst)
+    result = [0] * (numel - window_size + 1)
+    result = Parallel(
+        n_jobs=-1)(delayed(sum)(
+            lst[i:i + window_size]) for i in range(numel - window_size + 1)
+        )
+    return result
+
+%timeit -n 1 -r 1 window_sum_parallel(lst, 1000)
+```
+
+What happened!? The parallelization actually made the code run slower? (your results might vary). This is because of the overhead of parallelization. Parallelization is not always a good idea - it depends on how complex is each computation. If the computation is simple, the time it takes to *send* the data to different processes might take more time than the computation itself.
+
+```{python}
+def expensive_operation(window):
+    res = 0
+    for j, v in enumerate(window):
+        if sum(window[j:]) > sum(window[:j]):
+            res += v**2 / (np.sqrt(np.abs(v)) + 1)
+    return res
+
+def expensive_windowed_operation(lst, window_size):
+    numel = len(lst)
+    result = [0] * (numel - window_size + 1)
+    for i in range(numel - window_size + 1):
+        window = lst[i:i + window_size]
+        result[i] = expensive_operation(window)
+    return result
+
+lst = np.random.randint(-50, 100, 10000).tolist()
+
+%timeit -n 1 -r 1 expensive_windowed_operation(lst, 100)
+```
+
+Now, let's parallelize it. The `-1` in `Parallel(n_jobs=-1)` means to use all available cores.
+
+```{python}
+from joblib import Parallel, delayed
+
+def expensive_windowed_operation_parallel(lst, window_size):
+    numel = len(lst)
+    result = [0] * (numel - window_size + 1)
+    result = Parallel(
+        n_jobs=-1
+        )(delayed(expensive_operation)(
+            lst[i:i + window_size]) for i in range(numel - window_size + 1)
+        )
+    return result
+
+%timeit -n 1 -r 1 expensive_windowed_operation_parallel(lst, 100)
+```
+
+Now that the individual computations are quite expensive, the function can benefit from parallelization.
+
+### GPUs
+
+For really complex computations required to run on very large inputs, the utilization of GPUs can provide significant speedups. One popular framework to utilize GPUs is [PyTorch](https://pytorch.org/).
+
+However, the same applies as with CPU parallelization: be prudent about the data transfer between the CPU and GPU and distribution (and later aggregation) among individual cores.
+
+
+# Examples of different algorithm implementations
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from functools import partial
+
+def plot_comparison(
+    f1, f2,
+    max_n, gen_func,
+    name1, name2,
+    title
+):
+    n_values = np.r_[2:max_n:10j]
+    runtimes1 = []
+    runtimes2 = []
+    for n in n_values:
+        x = gen_func(int(n))
+        runtimes1.append(time_function(f1, x))
+        runtimes2.append(time_function(f2, x))
+    plt.plot(n_values, runtimes1, label=name1)
+    plt.plot(n_values, runtimes2, label=name2)
+    plt.xlabel('Input Size')
+    plt.ylabel('Runtime (s)')
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+```
+
+### Maximum subarray
+```{python}
+def max_subarray_naive(arr):
+    max_sum = float('-inf')
+    for i in range(len(arr)):
+        for j in range(i, len(arr)):
+            current = sum(arr[i:j+1])
+            if current > max_sum:
+                max_sum = current
+    return max_sum
+
+def max_subarray_optimized(arr):
+    max_current = max_global = arr[0]
+    for num in arr[1:]:
+        max_current = max(num, max_current + num)
+        max_global = max(max_global, max_current)
+    return max_global
+
+plot_comparison(
+    max_subarray_naive,
+    max_subarray_optimized,
+    200,
+    partial(np.random.randint, -100, 200),
+    'Naive O(n^3)', "Kadane's Algorithm O(n)", 'Maximum Subarray'
+)
+```
+
+### Find duplicates
+
+```{python}
+def find_duplicates_naive(lst):
+    result = []
+    for i in range(len(lst)):
+        for j in range(i + 1, len(lst)):
+            if lst[i] == lst[j]:
+                if lst[i] not in result:
+                    result.append(lst[i])
+    return result
+
+def find_duplicates_optimized(lst):
+    return list(set(lst))
+
+plot_comparison(
+    find_duplicates_naive,
+    find_duplicates_optimized,
+    3000,
+    partial(np.random.randint, 1, 100),
+    'Naive O(n^3)', "Set O(n)", 'Find Duplicates'
+)
+```
+
+# Beyond Asymptotic Complexity
+
+Asymptotic complexity is not all.
+Considering three algorithms: $A_1$ of $O(n^2)$, $A_2$ of $O(n \log n)$, and $A_3$ of $O(n \log n)$.
+Even though $A_1$ has the highest order of growth, it can still be faster than $A_2$ and $A_3$ for certain inputs.
+
+For example:
+- insertion sort has $O(n^2)$
+- merge sort has $O(n \log n)$
+- quick sort has $O(n \log n)$ but $O(n^2)$ in worst case
+
+Considering this, one can assume that merge sort would be the best choice - insertion sort should be the slowest and quick sort has a risk of being just as bad as insertion sort.
+
+And at a first glance, it might look like it is true:
+
+```{python}
+import numpy as np
+from matplotlib import pyplot as plt
+
+def insert_sort(lst):
+    for i in range(1, len(lst)):
+        key = lst[i]
+        j = i - 1
+        while j >= 0 and lst[j] > key:
+            lst[j + 1] = lst[j]
+            j -= 1
+        lst[j + 1] = key
+    return lst
+
+def merge(arr, l, m, r):
+    n1 = m - l + 1
+    n2 = r - m
+
+    L = arr[l:m + 1]
+    R = arr[m + 1:r + 1]
+
+    i, j, k = 0, 0, l
+
+    while i < n1 and j < n2:
+        if L[i] <= R[j]:
+            arr[k] = L[i]
+            i += 1
+        else:
+            arr[k] = R[j]
+            j += 1
+        k += 1
+
+    while i < n1:
+        arr[k] = L[i]
+        i += 1
+        k += 1
+
+    while j < n2:
+        arr[k] = R[j]
+        j += 1
+        k += 1
+
+def merge_sort(arr, l, r):
+    if l < r:
+        m = l+(r-l)//2
+        merge_sort(arr, l, m)
+        merge_sort(arr, m+1, r)
+        merge(arr, l, m, r)
+
+def partition(array, low, high):
+    pivot = array[(high - low) // 2 + low]
+    i = low - 1
+    for j in range(low, high):
+        if array[j] <= pivot:
+            i = i + 1
+            array[i], array[j] = array[j], array[i]
+    array[i + 1], array[high] = array[high], array[i + 1]
+    return i + 1
+
+def quick_sort(array, low, high):
+    if low < high:
+        pi = partition(array, low, high)
+        quick_sort(array, low, pi - 1)
+        quick_sort(array, pi + 1, high)
+    return array
+
+lst = np.random.randn(11000)
+lst[len(lst) // 2] = max(lst)
+
+%timeit -n 1 -r 1 insert_sort(lst)
+%timeit merge_sort(lst, 0, len(lst) - 1)
+%timeit quick_sort(lst, 0, len(lst) - 1)
+```
+
+However:
+
+```{python}
+lst = np.arange(10)
+
+%timeit insert_sort(lst)
+%timeit merge_sort(lst, 0, len(lst) - 1)
+%timeit quick_sort(lst, 0, len(lst) - 1)
+```
+

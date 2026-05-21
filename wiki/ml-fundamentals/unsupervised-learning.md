@@ -4,9 +4,9 @@
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_unsuper.pdf
+**Sources**: ls26_lecture_unsuper.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-05-12
+**Last updated**: 2026-05-16
 
 ---
 
@@ -20,6 +20,8 @@ The log-likelihood involves a log of a sum, making direct MLE intractable:
 
 $$\log p(\mathbf{x}; \theta) = \log \sum_{\mathbf{z}} p(\mathbf{x}, \mathbf{z}; \theta)$$
 
+The textbook presents this as a latent-variable MLE problem: if the latent variable were observed, parameter estimation would often be straightforward, but because it is hidden, the likelihood contains a sum inside the logarithm (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). EM solves the resulting "chicken and egg" problem by alternating between inferring a posterior over latent assignments and maximizing expected complete-data likelihood (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Gaussian Mixture Models (GMM)
 
 The canonical latent-variable model (source: ml-fundamentals/ls26_lecture_unsuper.pdf):
@@ -29,6 +31,8 @@ $$p(\mathbf{x}; \theta) = \sum_{k=1}^K \pi_k\, \mathcal{N}(\mathbf{x}; \boldsymb
 - Latent variable $z_i \in \{1, \ldots, K\}$: which component generated $\mathbf{x}_i$
 - Parameters $\theta = \{\pi_k, \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k\}_{k=1}^K$
 - No closed-form MLE due to the sum inside the log
+
+For a mixture of $K$ Gaussians, the latent variable $z_i$ records which component generated $\mathbf{x}_i$; the observed density is therefore a weighted sum of component densities (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). This is the canonical example where complete-data MLE is easy but observed-data MLE is not.
 
 ## The EM Algorithm
 
@@ -71,6 +75,8 @@ EM alternates two steps on the ELBO $\mathcal{L}(q, \theta)$ (source: ml-fundame
 
 Each step is guaranteed to not decrease the log-likelihood, so **EM monotonically increases $\log p(\mathbf{x}; \theta)$** and converges to a local maximum.
 
+The textbook expresses the same idea as alternate maximization of an entropy-augmented expected log-likelihood objective $G(Q,\theta)$, where each row of $Q$ is a distribution over the latent value for one training example (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). The E-step sets $Q_{i,k}=p_{\theta^{(t)}}(z_i=k\mid \mathbf{x}_i)$, and the M-step chooses $\theta^{(t+1)}$ maximizing the expected complete-data log-likelihood under $Q$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Properties
 
 - **Guaranteed convergence** to a local maximum (not necessarily global)
@@ -80,6 +86,7 @@ Each step is guaranteed to not decrease the log-likelihood, so **EM monotonicall
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[ml-fundamentals/generative-learning]]
 - [[ml-fundamentals/bayesian-learning]]
 - [[pattern-recognition/em-algorithm]]

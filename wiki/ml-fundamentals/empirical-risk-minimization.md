@@ -1,12 +1,12 @@
 # Empirical Risk Minimization (ERM)
 
-**Summary**: The foundational principle of statistical learning: choose the hypothesis that minimizes the average loss on training data. ERM connects the true risk R(p,h) to its empirical estimate, with generalization guarantees via concentration inequalities.
+**Summary**: The foundational principle of statistical learning: choose the hypothesis that minimizes the average loss on training data. ERM connects the true risk $R(p,h)$ to its empirical estimate, but only generalizes when paired with an appropriate inductive bias and complexity control.
 
 **Course**: ml-fundamentals
 
-**Sources**: ls26_lecture_erm.pdf, ls26_seminar_erm_solution.pdf, ls26_seminar_intro_sol.pdf
+**Sources**: ls26_lecture_erm.pdf, ls26_seminar_erm_solution.pdf, ls26_seminar_intro_sol.pdf, understanding-machine-learning-theory-algorithms.pdf
 
-**Last updated**: 2026-04-14
+**Last updated**: 2026-05-16
 
 ---
 
@@ -28,6 +28,14 @@ $$\hat{R}(\mathcal{T}_m, h) = \frac{1}{m} \sum_{i=1}^{m} \ell(y_i, h(x_i))$$
 **ERM principle**: 
 $$h_m = \arg\min_{h \in \mathcal{H}} \hat{R}(\mathcal{T}_m, h)$$
 
+## Why ERM Needs Inductive Bias
+
+ERM is natural because the training set is the only snapshot of the unknown distribution available to the learner, but unrestricted ERM can overfit badly: a memorizing predictor can obtain zero empirical risk while having large true risk on unseen points (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
+The fix is not to abandon ERM, but to restrict it to a hypothesis class $\mathcal{H}$ chosen before seeing the data. This restriction is the learner's **inductive bias**: it encodes prior assumptions about which predictors are plausible for the task (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf). A smaller $\mathcal{H}$ protects against overfitting but can increase approximation error; a richer $\mathcal{H}$ can reduce approximation error but raises estimation error (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
+The book's no-free-lunch result makes this point formal: no universal learner succeeds on all binary classification tasks without some prior restriction or assumption on the data-generating distribution (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ## Error Decomposition
 
 The risk of the learned hypothesis decomposes as:
@@ -39,9 +47,11 @@ where:
 - **$R(p, h_\mathcal{H}) - R(p, h^*)$** = **approximation error** — how much we lose by restricting to $\mathcal{H}$. Depends on the expressiveness of $\mathcal{H}$, not on data.
 - **$R(p, h_m) - R(p, h_\mathcal{H})$** = **estimation error** — how much we lose because we only have $m$ samples. Decreases as $m \to \infty$.
 
+The textbook frames the same split as a **bias-complexity tradeoff**: approximation error measures the quality of the prior knowledge encoded by $\mathcal{H}$, while estimation error measures the risk of fitting sample noise due to the size or complexity of $\mathcal{H}$ (source: ml-fundamentals/understanding-machine-learning-theory-algorithms.pdf).
+
 ### Exam tip: Approximation error questions
 
-A common exam pattern: "Is the approximation error zero?" This means: does the [[shared/bayes-classifier|Bayes classifier]] belong to H?
+A common exam pattern: "Is the approximation error zero?" This means: does the [[shared/bayes-classifier|Bayes classifier]] belong to $\mathcal{H}$?
 
 **Seminar examples** (source: ml-fundamentals/ls26_seminar_erm_solution.pdf):
 - **Naive Bayes with binary features** → log-odds is linear in $x$ → Bayes classifier is linear → **approximation error $= 0$** for linear $\mathcal{H}$
@@ -102,6 +112,7 @@ where:
 
 ## Related pages
 
+- [[ml-fundamentals/understanding-machine-learning]]
 - [[shared/bayes-classifier]]
 - [[ml-fundamentals/pac-learning]]
 - [[ml-fundamentals/vc-dimension]]

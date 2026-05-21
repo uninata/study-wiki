@@ -1,18 +1,18 @@
 # Transformers for Neural Machine Translation
 
-**Summary**: Transformer architecture applied to NMT, including self-attention replacing RNNs, encoder-decoder structure, positional encoding, and LLM-based translation.
+**Summary**: Transformer architecture applied to NMT, including self-attention replacing RNNs, encoder-decoder structure, positional encoding, LLM-based translation, and evidence about source syntax in Transformer NMT.
 
 **Course**: nlp
 
-**Sources**: 08-transformer-and-syntax-in-nmt.pdf
+**Sources**: 08-transformer-and-syntax-in-nmt.pdf, nlp/The Annotated Transformer.md, nlp/The Illustrated Transformer.md, nlp/The Illustrated Transformer (1).md, nlp/Transformer Architecture_ Attention Is All You Need.md, nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf
 
-**Last updated**: 2026-04-17
+**Last updated**: 2026-05-21
 
 ---
 
 ## Overview
 
-Transformers revolutionized NMT by replacing recurrent architectures with pure attention-based models. Released in 2017 ("Attention is All You Need"), transformers became the foundation for all modern translation systems and large language models.
+Transformers revolutionized NMT by replacing recurrent architectures with pure attention-based models. The original architecture uses stacked encoder and decoder layers with self-attention, feed-forward sublayers, residual connections, and layer normalization (source: nlp/The Annotated Transformer.md; source: nlp/The Illustrated Transformer.md).
 
 ---
 
@@ -72,6 +72,8 @@ Despite LSTM/GRU mitigations:
 
 See [[shared/attention-mechanisms]] for detailed description.
 
+In self-attention, each token is projected into query, key, and value representations; attention weights come from query-key compatibility, and the output is a weighted sum of values (source: nlp/The Illustrated Transformer.md; source: nlp/Transformer Architecture_ Attention Is All You Need.md). Multi-head attention repeats this computation in several learned representation subspaces, then concatenates and projects the head outputs (source: nlp/The Illustrated Transformer.md).
+
 **Key Difference from RNN Attention**:
 - RNN attention: Decoder attends to encoder outputs (one decoder layer)
 - Transformer: Every layer can attend to any other layer in source/target
@@ -81,7 +83,7 @@ See [[shared/attention-mechanisms]] for detailed description.
 
 **Problem**: Attention is **permutation-invariant**; doesn't inherently model word order
 
-**Solution**: Add positional information to embeddings (source: 08-transformer-and-syntax-in-nmt.pdf):
+**Solution**: Add positional information to embeddings (source: 08-transformer-and-syntax-in-nmt.pdf; source: nlp/The Annotated Transformer.md):
 
 $$\text{PE}(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)$$
 
@@ -105,7 +107,7 @@ where:
    - **Impact**: 10-100x speedup in training on GPUs
 
 2. **Long-Range Dependencies**:
-   - Direct connections between distant tokens (O(1) path length)
+   - Direct connections between distant tokens ($\mathcal{O}(1)$ path length)
    - No vanishing gradients
    - **Impact**: Better handling of 50+ token distances
 
@@ -167,7 +169,7 @@ where:
 - Keep k best partial hypotheses
 - Expand each by one token
 - Prune to k best overall
-- **Complexity**: O(n × k) where n = target length, k = beam width
+- **Complexity**: $\mathcal{O}(n \times k)$ where $n$ = target length, $k$ = beam width
 
 ---
 
@@ -236,19 +238,20 @@ Do transformers learn linguistic structure without explicit supervision?
 - Some attention heads specialize in syntactic roles (subject, object, etc.)
 - Model learns useful linguistic patterns even without supervised syntax signal
 
-### Syntax-Aware Decoding
+### Explicit Source Syntax: What the Paper Found
 
-Could we improve translation by incorporating explicit syntax?
+The source-syntax Transformer paper asks whether providing source-side dependency syntax helps a modern Transformer, given that earlier positive results were mostly from recurrent sequence-to-sequence models and smaller data settings (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
 
-**Approaches**:
-- **Constrained Decoding**: Force decoder output to respect target-side syntax
-- **Syntax Features**: Add syntactic features to decoder hidden states
-- **Syntax Loss**: Auxiliary loss predicting source/target syntax structure
+It tests two multi-task strategies:
 
-**Results**: Mixed
-- Explicit syntax can help but adds complexity
-- Implicit learning often sufficient (Occam's razor)
-- Modern trend: Keep models simple; let attention learn structure
+1. **Simple alternating multi-tasking**: mix translation examples with auxiliary source-side parsing tasks, such as predicting dependency heads or labels (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
+2. **Dependency interpretation of self-attention**: train one Transformer attention head to match a source-side dependency tree (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
+
+The simple alternating setup did not outperform the single-task MT baseline after the same number of training steps. The paper argues that sharing encoder and decoder capacity with an auxiliary task can cost more than the syntactic supervision helps, though the same idea may still be useful in smaller-data settings (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
+
+The attention-head supervision setup improved translation and produced reasonable parsing behavior, but the crucial control experiment used a trivial "diagonal parse" or linear tree and obtained very similar translation gains. This weakens the claim that the improvement comes from true linguistic syntax; it may instead be a regularizing effect imposed on self-attention matrices (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
+
+**Takeaway**: In Transformer NMT, explicit source syntax is not automatically useful. A good syntax-aware experiment needs dummy baselines, because a gain from an auxiliary objective may come from regularization rather than linguistic knowledge (source: nlp/Promoting the knowledge of source syntax in Transformer NMT.pdf).
 
 ---
 
@@ -257,7 +260,7 @@ Could we improve translation by incorporating explicit syntax?
 | Aspect | RNN-Based | Transformer |
 |--------|-----------|------------|
 | **Training Speed** | Slow (sequential) | Fast (parallel) |
-| **Memory per Token** | O(n) for cache | O(n²) for attention |
+| **Memory per Token** | $\mathcal{O}(n)$ for cache | $\mathcal{O}(n^2)$ for attention |
 | **Long-Range Deps** | Weak (gradient vanishing) | Strong (direct paths) |
 | **Inference Latency** | Per-word sequential | Parallel (with beam) |
 | **Parameter Count** | Moderate | Large |

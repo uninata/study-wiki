@@ -244,3 +244,17 @@ Updated cross-links in: reinforcement-learning.md. Updated index.md.
 ## [2026-05-12] ingest | courses_mpv_labs_exam_questions [CourseWare Wiki].pdf | computer-vision
 
 Created `computer-vision/exam-questions.md` — all 43 exam questions organized by topic (local features, retrieval, RANSAC, detection, tracking, Hough transform, DNNs) with cross-links to 10+ wiki pages per section. Added topic coverage map and notably absent topics. Updated index.md and course-overview.md.
+
+## [2026-05-16] ingest | understanding-machine-learning-theory-algorithms.pdf | ml-fundamentals
+
+Ingested relevant chapters from Shalev-Shwartz and Ben-David's *Understanding Machine Learning*. Created `ml-fundamentals/understanding-machine-learning.md` as a source summary and chapter map. Enhanced `course-overview.md`, `empirical-risk-minimization.md`, `pac-learning.md`, `vc-dimension.md`, `model-selection.md`, `linear-classifiers.md`, `svm.md`, `prediction-evaluation.md`, `generative-learning.md`, `unsupervised-learning.md`, `deep-learning-generalization.md`, and `shared/kernel-functions.md` with textbook-backed context, citations, and links. Updated `wiki/index.md`.
+
+## [2026-05-21] lint | nlp and ml-fundamentals source grounding | nlp, ml-fundamentals
+
+Audited NLP and ML Fundamentals wiki pages against available raw resources. Fixed the finite-class PAC sample complexity formula in `ml-fundamentals/pac-learning.md` to match `ls26_lecture_pac.pdf` and seminar examples. Corrected the NLP exam-question description in `wiki/index.md` from a stale "12 questions" summary to the 7-question written-exam structure in `Statistical Machine Translation _ ÚFAL_exam_questions.pdf`.
+
+## [2026-05-21] ingest | previously unreflected NLP raw resources | nlp
+
+Ingested substantive NLP raw resources that were present but not accurately reflected in page source metadata or content. Updated `nlp/phrase-based-machine-translation.md` with `Phrase-based Model - MT Talks.md` details on non-linguistic phrases, consistency constraints, stack-based decoding, coverage vectors, pruning, and future cost. Updated `nlp/transformers-nmt.md` with Transformer tutorial sources and `Promoting the knowledge of source syntax in Transformer NMT.pdf`, including its multi-task syntax experiments, dummy diagonal-parse control, and regularization interpretation. Rewrote `nlp/machine-translation-evaluation.md` to match `01-eval.pdf`, replacing unsupported METEOR/TER-centered material with manual evaluation protocols, BLEU caveats, chrF/BEER/HTER mentions, empirical confidence intervals, LLM-judge caveats, and component-vs-end-to-end evaluation. Updated `nlp/exam-questions.md` and `nlp/morphology-machine-translation.md` to point evaluation advice back to supported lecture material. Updated `shared/transformers.md` source metadata and `wiki/index.md`.
+
+Metadata-only or one-line raw stubs (`Statistical Machine Translation.md`, `Statistical Machine Translation (1).md`, `Statistical Machine Translation (2).md`, `Statistical Machine Translation (3).md`, `untitled.md`) were inspected but not used as factual sources because they contain no substantive lecture content.

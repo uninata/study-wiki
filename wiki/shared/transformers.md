@@ -4,9 +4,9 @@
 
 **Course**: nlp, ml-methods, deep-learning
 
-**Sources**: 08-transformer-and-syntax-in-nmt.pdf, nlp/The Annotated Transformer.md, nlp/The Illustrated Transformer (1).md, nlp/Transformer Architecture_ Attention Is All You Need.md
+**Sources**: 08-transformer-and-syntax-in-nmt.pdf, nlp/The Annotated Transformer.md, nlp/The Illustrated Transformer.md, nlp/The Illustrated Transformer (1).md, nlp/Transformer Architecture_ Attention Is All You Need.md
 
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-21
 
 ---
 

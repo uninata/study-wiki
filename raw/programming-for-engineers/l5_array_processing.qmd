@@ -1,0 +1,1755 @@
+---
+project:
+  type: default
+---
+
+# Lecture 5 - Array processing
+
+```{python}
+import numpy as np
+```
+
+## Introduction
+
+Sorting is one of the most common operations on arrays. There are many approaches to sorting - each performing differently in different situations.
+
+#### Preparation of the visualization code
+
+Before we start with the explanations of the sorting algorithms, we should create some code that will allow us to test and visualize what is actually happening.
+
+We will be printing states of the array that is being sorted after each step of the algorithm. Note that an **algorithm having fewer steps does not necessarily mean more efficient algorithm**. For **some sorting algorithms, a single step might take more operations**. For example looping through the entire array (e.g., selection sort) at each "step" takes `n` operations and if we need `n` steps, that takes us to quadratic runtime.
+
+In the following sections, the sorting functions will have `yield` statements in them. These are for visualization of the sorting process. You can ignore them when reading the code. The `yield` returns the given value (like `return`) but *does **not** exit* the function.
+
+To show the sorting algorithms in action, let's create a function that will make an unsorted array (probably) and run the sorting algorithm on it.
+
+```{python}
+def pretty_format_array(array, width=2):
+    """Format a 1D array so printed states are easy to compare."""
+    return "[" + ", ".join(f"{value:>{width}d}" for value in array) + "]"
+
+
+def test_sort(sort_generator, show_all_states=False, seed=42, array=None):
+    """Run a visualization-friendly sorting generator on a small random array."""
+    if array is not None:
+        sample = np.array(array)
+    else:
+        rng = np.random.default_rng(seed)
+        sample = rng.integers(0, 20, size=10)
+
+    if show_all_states:
+        print("Unsorted array:")
+        print(pretty_format_array(sample))
+        print("Sorting process:")
+    states = []
+    for step_index, state in enumerate(sort_generator(sample.copy())):
+        if step_index == 0 and not show_all_states:
+            print("Unsorted array:")
+        elif step_index == 1 and not show_all_states:
+            print("Sorting process:")
+        print(f"{step_index:2d}: {pretty_format_array(np.asarray(state))}")
+        states.append(np.asarray(state).copy())
+    return states
+```
+
+
+To make the visualization nice, let's plot the sorting process and make an animation out of it. Don't worry about the details of the animation code - you don't need to understand it. The animation will show a bar graph, where each *bar* represents an element in the array. The height of the bar is the value of the element.
+The `yield` in the sorting functions is **not** part of the sorting itself. It is only used here to observe the algorithm step by step. "Normal" implementation of sorting would return only the sorted result at the end.
+
+```{python}
+import os
+import sys
+import time
+import inspect
+from pathlib import Path, PurePath
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from IPython.display import HTML, Image, SVG, display
+
+def animate_sort(states, title=""):
+    """Animate a sequence of array states as a bar chart."""
+    max_length = len(states[-1])
+    padded_states = [
+        np.pad(state, (0, max_length - len(state)), mode="constant")
+        for state in states
+    ]
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    bars = ax.bar(range(max_length), padded_states[0], align="edge")
+    ax.set_title(title)
+    ax.set_xlim(0, max_length)
+    ax.set_ylim(0, max(max(state) for state in padded_states) * 1.1)
+    step_text = ax.text(0.02, 0.95, "", transform=ax.transAxes)
+
+    def update(frame_index):
+        for bar, value in zip(bars, padded_states[frame_index]):
+            bar.set_height(value)
+        step_text.set_text(f"Step {frame_index}")
+        return bars
+
+    animation_obj = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(padded_states),
+        interval=300,
+        repeat=False,
+    )
+    plt.close()
+    return HTML(animation_obj.to_html5_video())
+```
+## Sorting
+
+Sorting is one of the most common array-processing tasks. Many later operations become easier or faster once data is sorted:
+
+- binary search,
+- duplicate detection,
+- median and percentile calculations,
+- grouping and merging.
+
+### Comparison-based sorting: theoretical lower bound
+
+For **comparison-based** sorting, there is a lower bound: in the general case, no algorithm can do better than $\Omega(n \log n)$ comparisons - this is given by the number of permutations of $n$ elements and the number of comparisons required to "discover" which permutation is the given array in.
+
+That is why algorithms such as merge sort, heap sort, and good implementations of quicksort are considered asymptotically efficient.
+
+Algorithms such as radix sort avoid this lower bound because they do **not** sort by generic comparisons alone. They exploit extra structure in the data.
+
+## Sorting algorithms
+
+### Bubble Sort
+
+Bubble sort is one of the simplest sorting algorithms - simply take two neighboring elements and swap them if they are out of order or leave them unchanged if they are in order. Do this for each pair of elements in the array. Repeat until the array is sorted. This has the effect of large values "bubbling" to the top of the array, hence the name.
+
+While simple in principle, for $N$ elements, each "swapping" pass (comparing every pair of elements once) requires $N$ comparisons. In worst case, i.e., *reversed* array, each value would need to be swapped with each other value. Therefore, we would need $N$ passes and thus the total number of comparisons would be $N^2$. Actually, (slightly) less, since the largest value would "bubble" to the top of the array and thus we don't need to "touch" the last index on the next pass; likewise for the second largest value, etc. One small advantage is that the sorting is performed in-place and thus requires (virtually) no additional memory.
+
+#### Pseudocode
+
+```sql
+procedure bubble_sort(A)
+    n ← length(A)
+    for i ← 0 to n-2
+        for j ← 0 to n-2-i
+            if A[j] > A[j+1]
+                swap A[j], A[j+1]
+```
+
+#### Implementation
+
+```{python}
+def bubble_sort(values):
+    arr = np.array(values, copy=True)
+    n = len(arr)
+    yield arr.copy()  # yield initial state
+
+    for end in range(n - 1, 0, -1):
+        swapped = False
+        for index in range(end):
+            # compare the neighboring items
+            if arr[index] > arr[index + 1]:
+                # swap the items (if necessary)
+                arr[index], arr[index + 1] = arr[index + 1], arr[index]
+                swapped = True
+                yield arr.copy()  # yield state after each swap
+        if not swapped:  # early exit
+            break
+```
+
+#### Complexity
+
+- Worst case: $O(n^2)$ comparisons and swaps.
+- Best case with early stop: $O(n)$.
+- Space: $O(1)$ extra memory.
+
+
+#### Visualization
+
+```{python}
+states = test_sort(bubble_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Bubble Sort Animation")
+```
+
+### Selection Sort
+
+Selection sort, like the Bubble sort, isn't, in most cases, practical. It loops over the array, finds the smallest value and puts it to the first position in the array (where it should be, when the array is sorted). Then it advances to the second position in the array, finds the second smallest value and puts it there. This way, it progressively "leaves behind" a sorted array. It is similar to the Bubble sort "in reverse" (Bubble sort progressively puts highest values at the end). Because for each element, it needs to loop through the whole (remaining) array, the asymptotic complexity is also $O(n^2)$.
+
+Selection sort can be interesting when **writes are expensive** and comparisons are cheap, because it performs relatively few swaps. Otherwise, it is mostly educational.
+
+How to remember: "'Select' the right element for each position in the array (in ascending order)."
+
+#### Pseudocode
+
+```sql
+procedure selection_sort(A)
+    n ← length(A)
+
+    for i ← 0 to n-2
+        min_index ← i
+
+        for j ← i+1 to n-1
+            if A[j] < A[min_index]
+                min_index ← j
+
+        swap A[i], A[min_index]
+```
+
+#### Implementation
+
+```{python}
+def selection_sort(values):
+    arr = np.array(values, copy=True)
+    n = len(arr)
+    yield arr.copy()
+
+    for start in range(n):
+        min_index = start
+        for index in range(start + 1, n):
+            if arr[index] < arr[min_index]:
+                min_index = index
+        if min_index != start:
+            arr[start], arr[min_index] = arr[min_index], arr[start]
+        yield arr.copy()
+```
+
+#### Complexity
+
+- Comparisons: always about $n(n-1)/2$, so $O(n^2)$.
+- Swaps: only $O(n)$, which is fewer than bubble sort.
+- Extra space: $O(1)$.
+
+#### Visualization
+
+```{python}
+states = test_sort(selection_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Selection Sort Animation")
+```
+
+### Insertion Sort
+
+Insertion sort loops through the array (starting from the second position). First, the algorithm stores the current item at position $i$ as $key$. Then, for each previous element at position $j$, it checks whether the $key$ item is smaller. If so, it swaps the items, effectively **moving the smaller item backwards**. If the $key$ is larger than the item at $j$ (or we are at the beginning of the array), it puts the $key$ item just after $j$. It essentially moves each item to the *"correct"* position. While the worst case performance is $O(n^2)$, it performs slightly better than the Bubble sort and also does not require any extra memory. It can be **useful for nearly sorted arrays**. For example, adding new items to an already sorted data set (the newly added sample set must be small relative to the whole dataset).
+
+#### Pseudocode
+
+```sql
+procedure insertion_sort(A)
+    n ← length(A)
+
+    for i ← 1 to n-1
+        key ← A[i]
+        j ← i - 1
+
+        while j ≥ 0 and A[j] > key
+            A[j+1] ← A[j]
+            j ← j - 1
+
+        A[j+1] ← key
+```
+
+#### Implementation
+
+```{python}
+def insertion_sort(values):
+    arr = np.array(values, copy=True)
+    yield arr.copy()
+
+    for key_index in range(1, len(arr)):
+        key = arr[key_index]  # take the current element
+        scan_index = key_index - 1  # start with the previous element
+
+        # while previous is larger
+        while scan_index >= 0 and arr[scan_index] > key:
+            arr[scan_index + 1] = arr[scan_index]  # swap the elements
+            scan_index -= 1  # and move to the previous position
+
+        # finally, (when prev is smaller) put the key at prev. + 1
+        arr[scan_index + 1] = key
+        yield arr.copy()
+```
+
+#### Complexity
+
+- Worst case: $O(n^2)$.
+- Best case: $O(n)$ when the array is already sorted.
+- Extra space: $O(1)$.
+
+#### Visualization
+
+```{python}
+states = test_sort(insertion_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Insertion Sort Animation")
+```
+
+### Merge Sort
+
+Merge sort is a **divide-and-conquer** algorithm - it recursively divides the array into smaller chunks, merge-sorts these chunks (which means, it also divides them) and then **merge** the sorted chunks to create a sorted array. That is, at each step, it takes the array, splits it (roughly) in half. Then, it splits each half into two more halves, and so on, until each half contains only one (or zero) item. Single (or zero) element array is always sorted - no further processing needed. So, the sorting function will return this "array". When two such arrays are returned (each single element and thus sorted), they are merged - either `left_half + right_half` if the left half is smaller, or `right_half + left_half` if the right half is smaller.
+
+This is then repeated for larger chunks. However, for these, the merging needs to be done element-by-element because, even though each chunk is sorted, it is not guaranteed that elements will be sorted when simply concatenating them. For example, consider the following two arrays (chunks): `a = [1, 5, 9]` and `b = [3, 5, 6, 10]`. They are both individually sorted but you can see we can't simply stack them together to get one sorted array. Rather, merge sort goes item by item for both arrays and puts the lowest item (from `a` and `b`) in the resulting array.
+
+Unlike the previous algorithms, merge sort has a time complexity of $O(n \log n)$, which is better than the quadratic one. However, it requires additional memory - the recursion requires memory to keep track of the function call (non-recursive version would still need state variables). Still, the time complexity is stable across varying conditions (size, type of data, etc.) - best and worst cases have the same $O(n \log n)$ complexity.
+
+#### Pseudocode
+
+```sql
+procedure merge(A, left, mid, right)
+
+    create arrays L and R
+
+    copy A[left..mid] into L
+    copy A[mid+1..right] into R
+
+    i ← 0
+    j ← 0
+    k ← left
+
+    while i < length(L) and j < length(R)
+        if L[i] ≤ R[j]
+            A[k] ← L[i]
+            i ← i + 1
+        else
+            A[k] ← R[j]
+            j ← j + 1
+        k ← k + 1
+
+    copy remaining elements of L
+    copy remaining elements of R
+```
+
+```sql
+procedure merge_sort(A)
+    if left ≥ right
+        return
+
+    mid ← floor((left + right) / 2)
+
+    merge_sort(A, left, mid)
+    merge_sort(A, mid+1, right)
+
+    merge(A, left, mid, right)
+```
+
+#### Practical note
+
+Merge sort is a good choice when:
+
+- stable sorting matters,
+- predictable performance matters,
+- linked lists or external storage are involved.
+
+#### Implementation
+
+```{python}
+def merge(left, right):  # subroutine to merge the halves
+    merged = []  # resulting merged array
+    left_index, left_length = 0, len(left)  # vars to keep track of the left half
+    right_index, right_length = 0, len(right)  # vars to keep track of the right half
+    # while both halves are not empty
+    while left_index < left_length and right_index < right_length:
+        if left[left_index] <= right[right_index]:  # if left is smaller
+            merged.append(left[left_index])  # put it in the result
+            left_index += 1  # advance left index
+        else:  # if right is smaller
+            merged.append(right[right_index])  # put it in the result
+            right_index += 1  # advance right index
+    merged.extend(left[left_index:])  # append remaining left half
+    merged.extend(right[right_index:])  # append remaining right half
+    return merged
+
+def merge_sort(arr):  # actual merge sort function
+    yield arr.copy()
+    if len(arr) <= 1:  # if single or zero items => already sorted
+        yield arr
+    else:  # non-trivial case - we have more items
+        mid = len(arr) // 2  # compute midpoint
+        left_half = arr[:mid]  # split the array
+        right_half = arr[mid:]
+        # recursively sort the halves
+        left_steps = list(merge_sort(left_half))
+        right_steps = list(merge_sort(right_half))
+
+        yield from left_steps
+        yield from right_steps
+        # merge the sorted halves
+        merged = merge(left_steps[-1], right_steps[-1])
+        yield merged
+```
+
+#### Complexity
+
+- The array is split over about $\log_2 n$ levels.
+- At each level, all elements are processed during merging.
+- Total time: $O(n \log n)$.
+- Extra memory: typically $O(n)$ for merged output, plus recursion overhead.
+
+#### Visualization
+
+For merge sort, the visualization is, perhaps, confusing, since it is showing the "small" chunks being sorted. In this case, it is perhaps better to look at the printed steps. See that the first and second items (step 0 and 1) are merged together into one, two-element array at step 2. Then, there is an odd-numbered array (3 items) being split into one item (step 3) and two items that are split further (steps 4 and 5). The two items are merged into one (step 6). Afterwards, the single element and the two-element arrays are merged into one (step 7). Finally (for this chunk of the whole array), the arrays from steps 2 and 7 are merged into one (step 8).
+
+```{python}
+states = test_sort(merge_sort, show_all_states=True)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Merge Sort Animation")
+```
+
+#### Merge Sort example
+
+```{mermaid}
+flowchart TD
+    A[8 3 5 1 9 2 7 4] --> B1[8 3 5 1]
+    A --> B2[9 2 7 4]
+    B1 --> C1[8 3]
+    B1 --> C2[5 1]
+    B2 --> C3[9 2]
+    B2 --> C4[7 4]
+    C1 --> D1[3 8]
+    C2 --> D2[1 5]
+    C3 --> D3[2 9]
+    C4 --> D4[4 7]
+    D1 --> E1[1 3 5 8]
+    D2 --> E1
+    D3 --> E2[2 4 7 9]
+    D4 --> E2
+    E1 --> F[1 2 3 4 5 7 8 9]
+    E2 --> F
+```
+
+### Quick Sort
+
+Quick sort also divides the array into sub-arrays and recursively sorts these. However, the merge step is essentially reversed, comparing to the merge sort. While merge sort first sorts each half and then sorts and merges them, item-by-item, quick sort first sorts the items into two halves - left half contains all items smaller than any item in the right half. Then, each half is sorted individually. Finally, the sorted halves can be directly concatenated to form a fully sorted array.
+
+The sorting to left (low) and right (high) halves/chunks, a pivot is first chosen. This is an item from the array that will be used to "judge" the rest of the values - values smaller than pivot will go to the left chunk, while values larger than pivot will go to the right chunk.
+
+In a simple implementation, the pivot is chosen as the midpoint element of the array. It's probably obvious that if this item has "unfavorable" value, it can cause issues. If the pivot is incidentally the smallest element in the array, the left chunk will have zero items, while the right one will contain the whole remaining array. In this case, the current sorting step is "wasted", producing almost no change to the array (basically, doing insert sort with the pivot as the key).
+
+Because of this, the worst case (e.g, always choosing the lowest element as pivot) time complexity of quick sort is $O(n^2)$. Nonetheless, if the pivot is chosen well (e.g., using some heuristic or a priori information about the data), the best case time complexity is $O(n \log n)$. In practice it can be faster than merge sort, since the merging process is more efficient. It is also possible to make an in-place sorting implementation of quick sort, when necessary.
+
+#### Pseudocode
+
+```sql
+procedure partition(A, low, high)
+    pivot ← A[high]
+    i ← low - 1
+
+    for j ← low to high-1
+        if A[j] ≤ pivot
+            i ← i + 1
+            swap A[i], A[j]
+
+    swap A[i+1], A[high]
+
+    return i + 1
+```
+
+```sql
+procedure quick_sort(A, low, high)
+
+    if low < high
+        p ← partition(A, low, high)
+
+        quick_sort(A, low, p-1)
+        quick_sort(A, p+1, high)
+```
+
+#### Complexity
+
+- Average case: $O(n \log n)$.
+- Worst case: $O(n^2)$.
+- Extra space: depends on implementation (in-place or out-of-place).
+
+#### Practical note
+
+Quicksort is often very fast in practice because:
+
+- partitioning is cache-friendly,
+- it often has low constant factors,
+- in-place versions use little extra memory.
+
+#### Implementation
+
+```{python}
+def quick_sort(arr):
+    yield arr.copy()
+    if len(arr) <= 1:  # trivial case 0 or 1 items => sorted
+        yield arr  # just return it
+    else:
+        pivot = arr[len(arr) // 2]  # choose pivot
+        left = [x for x in arr if x < pivot]  # make lower-than pivot chunk
+        middle = [x for x in arr if x == pivot]  # make equal-to pivot chunk
+        right = [x for x in arr if x > pivot]  # make greater-than pivot chunk
+
+        yield arr
+
+        left_steps = list(quick_sort(left))  # sort the chunks
+        right_steps = list(quick_sort(right))
+
+        yield from left_steps
+        yield middle
+        yield from right_steps
+        # merge the sorted chunks (and the middle chunk)
+        merged = left_steps[-1] + middle + right_steps[-1]
+        yield merged
+```
+
+Like for the merge sort, quick sort visualization is also more difficult to follow and it is better to analyze the printed steps. First, the pivot is chosen - in this case as `len(arr) // 2` (index 5 for array of length 10). The arrays is then split into 3 chunks: Chunks 1: all items smaller than pivot (step 1) Chunks 2: all items equal to pivot (step 2) Chunks 3: all items larger than pivot (step 3) These chunks are then also sorted by quick sort and merged.
+
+```{python}
+states = test_sort(quick_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Quick Sort Animation")
+```
+
+#### Quick Sort example
+
+```{mermaid}
+flowchart TD
+    A[8 3 5 1 9 2 7 4<br/>pivot=4]
+
+    A --> B1[3 1 2]
+    A --> P1((4))
+    A --> B2[8 5 9 7]
+
+    B1 --> C1[1 2 3]
+    B2 --> C2[5 7 8 9]
+
+    C1 --> F[1 2 3 4 5 7 8 9]
+    P1 --> F
+    C2 --> F
+```
+
+### Heap Sort
+
+Heap sort uses a **heap** representation of the data (specifically, a binary heap) - essentially a binary tree in "linear form". Each item at index $i$ is a parent of item at index $2i+1$ (left child) and $2i+2$ (right child), and the root of the tree is the item at index $0$. This is also called a **max heap**.
+
+At each step, the heap sort first "heapifies" the array - it checks whether each parent node is larger than the children. If not, it swaps them (so that in the end, parents are always larger than their children).
+
+After the array is made into a valid heap, the root element - element at the index $0$ must be the largest item in the array. It is then removed from the array and the remaining array is heapified again. This is repeated until the heap is empty. In practice, the item is not actually removed but placed at the end of the current array and the heap "pointer" is reduced to exclude the sorted part of the array.
+
+Like merge sort, heap sort has also $O(n \log n)$ time complexity in all cases. It has slightly less memory overhead than the merge sort. However, it is "unstable" (e.g., the order of equal items is not guaranteed to be preserved) and the performance does not improve when the array is almost sorted. Actually, for smaller and nearly sorted arrays, insertion sort might be faster.
+
+
+#### Pseudocode
+
+```sql
+procedure heap_sort(A)
+    build_max_heap(A)
+    n ← length(A)
+
+    for i ← n-1 downto 1
+        swap A[0], A[i]
+        heap_size ← heap_size - 1
+        max_heapify(A, 0)
+```
+
+```sql
+procedure build_max_heap(A)
+    heap_size ← length(A)
+
+    for i ← floor(n/2)-1 downto 0
+        max_heapify(A, i)
+```
+
+```sql
+procedure max_heapify(A, i)
+
+    left ← 2*i + 1
+    right ← 2*i + 2
+
+    largest ← i
+
+    if left < heap_size and A[left] > A[largest]
+        largest ← left
+
+    if right < heap_size and A[right] > A[largest]
+        largest ← right
+
+    if largest ≠ i
+        swap A[i], A[largest]
+        max_heapify(A, largest)
+```
+
+#### Practical note
+
+Heap sort is asymptotically efficient and memory-frugal, but often slower than quicksort in practice due to less cache-friendly memory access.
+
+#### Implementation
+
+```{python}
+def heap_sort(a):
+    n = len(a)
+    states = []
+    yield a.copy()
+
+    def make_heap(a, n, i):  # ensure the array `a` is a valid heap
+        largest = i  # go through each parent
+        l = 2 * i + 1  # and their children
+        r = 2 * i + 2
+        if l < n and a[l] > a[largest]:  # and ensure both children are smaller
+            largest = l  # otherwise, swap them
+        if r < n and a[r] > a[largest]:
+            largest = r
+        if largest != i:
+            a[i], a[largest] = a[largest], a[i]
+            states.append(a.copy())  # just for visualization
+            make_heap(a, n, largest)  # recursive call for children
+
+    for i in range(n//2 - 1, -1, -1):
+        make_heap(a, n, i)  # build max heap
+        yield a.copy()
+
+    for i in range(n - 1, 0, -1):
+        a[0], a[i] = a[i], a[0]  # yoink the root and put it at the end
+        states.append(a.copy())
+        yield a.copy()
+        make_heap(a, i, 0)
+        yield a.copy()
+    return a
+```
+
+#### Complexity
+
+- Building the heap: $O(n)$.
+- Repeated extraction: $O(n \log n)$ total.
+- Extra space: $O(1)$ for in-place implementations.
+
+#### Visualization
+
+In the visualization, notice how the largest item (in the unsorted part of the array) is first placed at the beginning of the array (i.e., the tree root) and then yanked out and placed at the end of the array. Or, rather, at the end of the heap / start of the sorted end of the array.
+
+```{python}
+states = test_sort(heap_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Heap Sort Animation")
+```
+
+#### Heap Sort Example
+
+8 3 5 1 9 2 7 4
+
+```{mermaid}
+flowchart TD
+    A[9] --> B[8]
+    A --> C[7]
+    B --> D[4]
+    B --> E[3]
+    C --> F[2]
+    C --> G[5]
+    D --> H[1]
+```
+
+[9 8 7 4 3 2 5 1]
+
+- swap last with root
+
+[1 8 7 4 3 2 5 | 9]
+
+Invalid heap:
+
+```{mermaid}
+flowchart TD
+    A[1] --> B[8]
+    A --> C[7]
+    B --> D[4]
+    B --> E[3]
+    C --> F[2]
+    C --> G[5]
+```
+
+Valid/heapified heap:
+
+```{mermaid}
+flowchart TD
+    A[8] --> B[4]
+    A --> C[7]
+    B --> D[1]
+    B --> E[3]
+    C --> F[2]
+    C --> G[5]
+```
+
+## Non-Comparison Sorts
+
+### Counting Sort
+
+Counting sort is a sorting algorithm that uses the idea of counting the number of occurrences of each element in the array. It can be used to sort both integers and strings.
+
+The idea is to count the number of occurrences of each element in the array and then place the counted number of "copies" of the element at the appropriate position in the sorted array. For example, if the array is `[1, 2, 3, 1, 2]`, then the sorted array would be `2 x '1'`, `1 x '2'`, and `1 x '3'`, resulting in `[1, 1, 2, 2, 3]".
+
+#### Practical note
+
+Counting sort is a good choice when `k << n`, i.e., the number of possible values is much smaller than the number of elements. Also, the `k` must be in a relatively small range.
+
+#### Implementation
+
+```{python}
+def counting_sort(values):
+    if not values:
+        return []  # no values, just return empty array
+
+    max_value = max(values)  # find the maximum value ~ number of possible values
+    counts = [0] * (max_value + 1)  # init list of counts
+
+    for value in values:  # for each value
+        counts[value] += 1  # increment the corresponding count
+
+    result = []  # build the sorted array
+    for value, frequency in enumerate(counts):
+        result.extend([value] * frequency)
+
+    return result
+```
+
+#### Complexity
+
+For `n` elements and `k` possible values:
+- Average case: $O(n + k)$.
+- Worst case: $O(n + k)$.
+- Extra space: $O(k)$.
+
+
+### Radix Sort
+
+Last sorting algorithm works in a slightly different way than the previous sorts - it's not actually comparing the elements (see that there is not `arr[index] < arr[other_index]` or any other element value comparison). Instead, it sorts by **digits** (can be adapted to sorting strings).
+
+The idea is that the array is sorted by the digit placements of the number - e.g., 123 is sorted as 1, 2, 3. We can start sorting from the **most significant digit** (MSD, right-most) or **least significant digit** (LSD, left-most). Then we continue with the next digit placement until we process all digits of the number. For each digit, a list of **buckets** is created (one bucket for each possible value, i.e., 10 buckets for decimal numbers), and each element is placed in the appropriate bucket. The buckets are then merged to form the (semi-)sorted array.
+
+It can be adapted to different numbering systems (binary, hex, ...) or even strings. The `RADIX` determines the number of digits or elements per-digit "place" (e.g., 10 for decimal, 2 for binary, 16 for hex).
+
+#### Practical note
+
+Radix sort can outperform comparison-based sorting when:
+
+- keys are integers or fixed-width strings,
+- the number of digits is bounded,
+- a stable digit pass is available.
+
+#### Implementation
+
+```{python}
+def radix_sort(arr, RADIX=10):
+    placement = 1  # which digit are we processing now
+    max_digit = max(arr)  # find the largest number
+    yield arr.copy()
+
+    while placement < max_digit:  # while there are digits to process
+        buckets = [list() for _ in range(RADIX)]  # create RADIX buckets
+        for i in arr:  # for each element
+            # get the digit at the current placement
+            tmp = int((i / placement) % RADIX)  # it can be though of as "hashing"
+            buckets[tmp].append(i)  # add item to the appropriate bucket
+        a = 0
+        for bucket in buckets:  # bucket-by-bucket
+            for item in bucket:  # "empty" the buckets into the array
+                arr[a] = item
+                a += 1
+        # this creates an array sorted by the current digit
+        yield arr.copy()
+        # advance to the next digit
+        placement *= RADIX
+```
+
+#### Complexity
+
+For:
+- `n` is the number of values,
+- `k` is the number of digit positions,
+- `b` is the base (for decimal numbers, `b = 10`),
+runtime is typically $O(k(n + b))$. When `b` is fixed, this is often written as $O(kn)$.
+
+#### Visualization
+
+Notice that the radix sort requires only two steps, if the elements have at most 2 digits. However, each step is quite laborious and hence it does not mean that radix sort is always faster. The actual time complexity is $O(nk)$ where $n$ is the number of elements and `k` is the number of digits. Therefore, if $k$ is large (relative to $n$), radix sort might approach quadratic time complexity. Also, of course, radix sort requires for the items to have *digits* or anything equivalent. Otherwise, it can't be used. Although, it can be adapted for fixed-precision floating point numbers, if they are treated as integers (e.g., 3.14 is treated as 314).
+
+```{python}
+states = test_sort(radix_sort)
+```
+
+```{python}
+#| eval: false
+#| code-fold: true
+#| echo: false
+animate_sort(states, title="Radix Sort Animation")
+```
+
+#### Notes
+
+- how would you handle negative numbers?
+- how would you handle the digit placements of binary numbers?
+
+### Comparison of sorting algorithms
+
+#### Benchmark
+
+```{python}
+import time
+try:
+    from tabulate import tabulate
+except ImportError:
+    tabulate = None
+
+sorting_algorithms = {
+    "Bubble Sort": bubble_sort,
+    "Insertion Sort": insertion_sort,
+    "Selection Sort": selection_sort,
+    "Merge Sort": merge_sort,
+    "Quick Sort": quick_sort,
+    "Heap Sort": heap_sort,
+    "Radix Sort": radix_sort,
+}
+
+# Compare for different array lengths and max values
+array_lengths = [100, 1000]
+max_vals = [100, 100_000]
+
+def benchmark_sorts(lengths, max_values, seed=123):
+    rng = np.random.default_rng(seed)
+    all_results = []
+
+    for length in lengths:
+        for max_value in max_values:
+            base_array = rng.integers(0, max_value, size=length)
+            for name, sort_generator in sorting_algorithms.items():
+                test_array = base_array.copy()
+                start = time.perf_counter()
+                list(sort_generator(test_array))
+                elapsed = time.perf_counter() - start
+                all_results.append([name, length, max_value, elapsed])
+    return all_results
+
+
+results = benchmark_sorts(array_lengths, max_vals)
+formatted = [
+    [name, length, max_value, f"{elapsed:.6f} s"]
+    for name, length, max_value, elapsed in results
+]
+
+if tabulate is None:
+    for row in formatted:
+        print(row)
+else:
+    print(tabulate(
+        formatted,
+        headers=["Algorithm", "Length", "Max value", "Run time"],
+        tablefmt="grid",
+    ))
+```
+
+#### Complexity comparison
+
+| Algorithm | Best case | Average case | Worst case | Extra space | Typical use |
+|---|---:|---:|---:|---:|---|---|
+| Bubble sort | $O(n)$* | $O(n^2)$ | $O(n^2)$ | $O(1)$ | - |
+| Selection sort | $O(n^2)$ | $O(n^2)$ | $O(n^2)$ | $O(1)$ | - |
+| Insertion sort | $O(n)$ | $O(n^2)$ | $O(n^2)$ | $O(1)$ | Small or nearly sorted data |
+| Merge sort | $O(n \log n)$ | $O(n \log n)$ | $O(n \log n)$ | $O(n)$ | Predictable performance |
+| Quicksort | $O(n \log n)$ | $O(n \log n)$ | $O(n^2)$ | ~$O(log n)$ | Often very fast in practice |
+| Heap sort | $O(n \log n)$ | $O(n \log n)$ | $O(n \log n)$ | $O(1)$ | Low extra memory |
+| Radix sort | $O(kn)$ | $O(kn)$ | $O(kn)$ | $O(n + b)$ | Integers / fixed-format keys |
+
+
+## Sliding window operations
+
+Sliding window operations are a fundamental concept in signal processing and image analysis. They involve applying a function to a subset of data, moving position (start/end indices) of the subset over the entire data set, and computing the output at each position.
+
+This pattern appears in:
+- moving averages,
+- substring problems,
+- local statistics,
+- streaming algorithms,
+- image and signal processing.
+
+### Fixed-size window
+
+In the simplest case, a **window** of a fixed size is used.
+
+#### Moving average
+
+The moving average is a simple operation that replaces each element in an array with the average of its neighboring elements within a fixed-size window. That is, for element at index $i$ and window size $w$, the moving average is the average of the elements at indices $(i - w // 2)$ to $(i + w // 2)$. For simplicity, we will consider odd windows sizes. One issue that needs to be solved is what happens if the window "overflows" the array bounds (either from the beginning or the end). This issue can be done with various padding techniques (zero-padding, DC-padding, circular padding - depends on the desired behavior) or simply limiting the window size.
+
+Here is a basic implementation of the moving average:
+
+```{python}
+def moving_average_basic(values, window_size):
+    """Moving average with boundary clipping."""
+    if window_size <= 0 or window_size % 2 == 0:
+        raise ValueError("window_size must be a positive odd integer")
+
+    arr = np.asarray(values, dtype=float)
+    numel = len(arr)
+    half_window = window_size // 2  # "radius"
+    avg = np.zeros(numel, dtype=float)
+    for i in range(numel):
+        start = max(0, i - half_window)  # ensure start >= 0
+        end = min(numel, i + half_window + 1)  # ensure end <= numel
+        # notice that since we are using slices, the end index is exclusive
+        # for "direct" indexing, we would need to use "end - 1"
+        avg[i] = sum(arr[start:end]) / (end - start)
+        # alternatively, when using numpy array:
+        # avg[i] = arr[start:end].mean()
+    return avg
+
+arr = np.random.randint(0, 10, 10)
+window_size = 3
+
+print("Original array:", arr)
+print("Moving average:", moving_average_basic(arr, window_size))
+```
+
+##### Complexity
+
+For each output position, we sum `window_size` values: time: $O(nw)$
+This is fine for small windows, but expensive for large ones.
+
+Alternatively, we can pad the array and compute the average only on "valid" elements. This has the advantage that it requires slightly less computations per step but also, provides a different result at the "edges" of the array.
+
+```{python}
+def moving_average_padded(input_arr, window_size):
+    numel = len(input_arr)
+    half_window = window_size // 2
+    # zero-pad the array
+    arr = np.zeros(numel + 2 * half_window)
+    arr[half_window:-half_window] = input_arr
+    avg = np.zeros(numel)
+    for i in range(numel):
+        avg[i] = sum(arr[i:i + window_size]) / window_size
+    return avg
+
+arr = np.random.randint(0, 10, 10)
+window_size = 5
+
+print("Original array:", arr)
+print("Moving average:", moving_average_padded(arr, window_size))
+```
+
+While this implementation is straight forward, it is not ideal, especially for larger window sizes. The reason is that for each position in the array, all the "surrounding" elements need to be summed. Can we do better?
+
+```{python}
+def moving_average_rolling(input_arr, window_size):
+    numel = len(input_arr)
+    half_window = window_size // 2
+    # zero-pad the array
+    arr = np.zeros(numel + 2 * half_window)
+    arr[half_window:-half_window] = input_arr
+    avg = np.zeros(numel)
+    # compute the first sum and average
+    wsum = sum(arr[:window_size])
+    avg[0] = wsum / window_size
+    for i in range(1, numel):
+        wsum = wsum - arr[i - 1] + arr[i + window_size - 1]
+        avg[i] = wsum / window_size
+    return avg
+
+print("Original array:", arr)
+print("Moving average:", moving_average_rolling(arr, window_size))
+```
+
+In this version, instead of computing the sum of elements from the current window from scratch, we compute "a rolling sum". We keep the sum from the last step. To compute the sum for the current window, we *remove*, i.e. subtract the left-most ("oldest") element and add in the right-most element (the new one that the window has "moved over" to). This way, we only need two addition operations per step (plus division, when computing the average).
+
+Speed comparison:
+
+```{python}
+large_array = np.random.randint(0, 10, 5000)
+
+for window_size in [3, 30]:
+    print("Window size:", window_size)
+    print("Run time for 'simple' moving average:")
+    %timeit moving_average_padded(large_array, window_size)
+    print("Run time for improved moving average:")
+    %timeit moving_average_rolling(large_array, window_size)
+    print(
+        "Are the results equal?",
+        np.allclose(
+            moving_average_padded(large_array, window_size),
+            moving_average_rolling(large_array, window_size)
+    ))
+    print("-" * 50 + "\n")
+```
+
+### Variable-size window
+
+In some cases, it is useful to traverse an array with a variable-size window. For example, finding maximum sub-array, constrained by some max-sum value. That is, we are looking for a sub-array `sarr = arr[start:end]` for which `sum(sarr) <= max_sum`.
+
+For example, in the given array:
+
+```{python}
+arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+```
+
+The maximum sub-array for `max_sum = 20` is `[2, 3, 4, 5, 6]`, summing to (exactly) `20`.
+
+We can, of course, **brute force** it by checking all possible combinations:
+
+```{python}
+def find_max_subarray_bruteforce(arr, max_sum):
+    numel = len(arr)
+    best_sum = 0
+    best_sub = []
+    for start in range(numel):
+        for end in range(start + 1, numel + 1):
+            current_sum = sum(arr[start:end])
+            if current_sum <= max_sum and current_sum > best_sum:
+                best_sum = current_sum
+                best_sub = arr[start:end]
+    if len(best_sub) == 0:
+        return None
+    return best_sub, best_sum
+
+print("Maximum sub-array:", find_max_subarray_bruteforce(arr, 20))
+```
+
+#### Complexity
+
+The version above reuses a running sum inside the inner loop, so it is $O(n^2)$. That is already much better than calling `sum(values[start:end])` from scratch for every candidate.
+
+To improve the brute-force approach, we can use a sliding window with variable size, bounded by `start` and `end` positions with the following rules:
+
+1.  The window size is initially set to 1.
+2.  If the sum of the current window is less than `max_sum`, increase `end` by 1. This adds another (new) element to the sum, increasing it.
+3.  If the sum of the current window is greater than or equal to `max_sum`, increase `start` by 1. This removes an element from the sum, decreasing it. Technically, if it is equal to `max_sum`, we could end, if we are looking for only one solution.
+
+Important caveat:
+> The classic expanding/shrinking sliding-window technique works directly only when all values are non-negative.
+
+```{python}
+def find_max_subarray(arr, max_sum):
+    numel = len(arr)
+    start = 0
+    end = 1
+    best_sum = 0
+    best_start, best_end = 0, 0
+    while end <= numel:
+        current_sum = sum(arr[start:end])  # we could also use the rolling sum
+        if current_sum <= max_sum and current_sum > best_sum:
+            best_sum = current_sum
+            best_start, best_end = start, end
+        if current_sum < max_sum:
+            end += 1
+        else:
+            start += 1
+    best_sub = arr[best_start:best_end]
+    if len(best_sub) == 0:
+        return None
+    return best_sub, best_sum
+
+print("Maximum sub-array:", find_max_subarray(arr, 20))
+```
+
+Each element enters the window at most once and leaves it at most once: time: $O(n)$.
+
+Speed comparison:
+
+```{python}
+N = 100
+large_array = np.random.randint(0, 10, N)
+max_sum = N >> 2
+print("Run time for brute force max subarray:")
+%timeit find_max_subarray_bruteforce(large_array, max_sum)
+print("Run time for sliding window max subarray:")
+%timeit find_max_subarray(large_array, max_sum)
+a = find_max_subarray_bruteforce(large_array, max_sum)
+b = find_max_subarray(large_array, max_sum)
+if a is not None and b is not None:
+    print("Are the results equal:", np.allclose(a[0], b[0]))
+else:
+    print("Results are None. (couldn't find a valid subarray)")
+```
+
+## Convolution
+
+Convolution is a more general operation that combines two arrays by sliding one array over the other and computing the dot product at each position. It is often used in image processing and signal processing. Many different tasks can be solved using convolution - edge detection, feature extraction (CNN), smoothing / filtering, "discrete derivation" (approximate derivatives), etc.
+
+Similarly to sliding window, one has to deal with the array boundary issue - either compute the indices so that the don't overflow the "edge" of the array or pad the array.
+
+We will implement a helper function to zero-pad and DC-pad (repeat the boundary values) an array:
+
+```{python}
+def zero_pad_1d(arr, kernel_size):
+    pad_size = kernel_size // 2
+    # use NumPy pad function
+    return np.pad(arr, pad_size, mode='constant', constant_values=0)
+
+def dc_pad_1d(arr, kernel_size):
+    pad_size = kernel_size // 2
+    return np.pad(arr, pad_size, mode='edge')
+```
+
+Here, we don't pad "manually" but make use of the `NumPy.pad` function.
+
+### 1D convolution
+
+Here is an implementation of 1D convolution:
+
+```{python}
+def convolve1d(signal, kernel, pad_type='zero'):
+    kernel_size = len(kernel)
+    numel = len(signal)
+    kernel = np.asarray(kernel, dtype=float)
+
+    # resolve the padding
+    if pad_type == 'zero':
+        signal = zero_pad_1d(signal, kernel_size)
+    elif pad_type == 'dc':
+        signal = dc_pad_1d(signal, kernel_size)
+    else:
+        raise ValueError("padding must be 'zero' or 'dc'")
+    result = np.zeros(numel)
+
+    for i in range(numel):  # convolve
+        window = signal[i:i + kernel_size]
+        result[i] = np.sum(window * kernel)
+    return result
+```
+
+The implementation for 1D case is quite simple. For each slice of the input array, multiply it with the kernel and sum the result - essentially a dot product.
+
+If the signal length is `n` and the kernel length is `k`: time: $O(nk)$
+
+Let's see some practical use-cases of 1D convolution.
+
+#### Discrete "Derivative"
+
+A discrete approximate derivative can be computed by a kernel that essentially computes the difference of the "function", represented by the array values, at the current index. Such kernels are, for example `[-1, 1]` or `[-1, 0, 1]` - add the next value, subtract the previous. To achieve a smoother result, larger kernel can be used (computes difference over a larger window). For a kernel size independent result, the kernel needs to be normalized. Keep in mind that this is an approximation and is typically used to "detect" when there is a positive or negative (trend) change in the signal. Not the actual derivative.
+
+```{python}
+x_vals = np.linspace(0, np.pi * 2, 100)
+arr = np.sin(x_vals)
+diff_kernel_size = 20
+kernel = np.r_[[-1] * diff_kernel_size, [1] * diff_kernel_size]  # "derivation" kernel
+kernel = kernel / len(kernel)
+ddiff = convolve1d(arr, kernel, "dc")
+
+import matplotlib.pyplot as plt
+plt.plot(x_vals, arr, label="sin(x)")
+plt.plot(x_vals, ddiff, label="approx. derivative")
+plt.title("Derivative of sin(x) is cos(x) - close enough...")
+plt.legend()
+plt.show()
+```
+
+#### Peak detection
+
+Sometimes, peaks or otherwise prominent values (local maxima) need to be detected. A kernel to detect peaks subtracts the surrounding values from the *central* value. The central value is also multiplied so that if it is larger than the surrounding values, the result will be positive.
+
+```{python}
+arr = np.exp(np.random.rand(50)) ** 12
+peak_window = 15
+# peak kernel subtracts the surrounding of a value from the value itself
+kernel = np.r_[[-1] * peak_window, peak_window * 2 + 1, [-1] * peak_window]
+peak_response = convolve1d(arr, kernel, "zero")
+peaks = np.where(peak_response > 0)[0]
+
+print("Peaks:", peaks)
+x = np.arange(len(arr))
+plt.plot(x, arr, label="signal")
+plt.scatter(peaks, arr[peaks], label="candidate peaks", color="red")
+plt.title("Peak detection")
+plt.legend()
+plt.show()
+```
+
+The result is not always perfect and typically requires some additional processing. Nonetheless, it is a fast way to detect at least potential candidates for local maxima.
+
+#### Filtering (smoothing)
+
+Using the convolution, a signal can be "smoothed". To smooth a signal, box (average) or Gaussian kernels can be used (other smoothing kernels exist). Smoothing kernels are often normalized to unit sum to keep the total "signal-strength" unchanged (otherwise, the kernel would also "amplify" the signal).
+
+```{python}
+arr = np.exp(np.random.rand(50)) ** 5
+
+box_size = 9
+box_kernel = np.ones(box_size) / box_size
+
+gauss_kernel_size = 9
+gauss_sigma = 10
+gauss_kernel = np.exp(-0.5 * np.arange(-gauss_kernel_size // 2, gauss_kernel_size // 2 + 1) ** 2 / gauss_sigma ** 2)
+gauss_kernel = gauss_kernel / gauss_kernel.sum()
+
+box_smoothed = convolve1d(arr, box_kernel, "dc")
+gauss_smoothed = convolve1d(arr, gauss_kernel, "dc")
+
+plt.plot(arr, label="original", color="b", alpha=0.5)
+plt.plot(box_smoothed, label="box filter", color="red")
+plt.plot(gauss_smoothed, label="gaussian filter", color="orange")
+plt.title("1D signal filtering (smoothing)")
+plt.legend()
+plt.show()
+```
+
+### 2D convolution
+
+2D convolution is a core operation of image processing. It is similar to 1D convolution, but the kernel is applied to a 2D array.
+
+If the image has shape `(H, W)` and the kernel has shape `(Kh, Kw)`, a simple implementation requires:
+
+- one loop over output rows,
+- one loop over output columns,
+- work proportional to `Kh * Kw` per output pixel.
+
+So the naive complexity is:
+
+$$
+O(H \cdot W \cdot Kh \cdot Kw)
+$$
+
+Like before, we need padding function:
+
+```{python}
+def pad_zero_2d(image, kernel_height, kernel_width):
+    # Calculate the padding sizes
+    pad_height = kernel_height // 2
+    pad_width = kernel_width // 2
+
+    # Pad the image with zeros
+    padded_image = np.pad(
+        image,
+        ((pad_height, pad_height), (pad_width, pad_width)),
+        mode='constant', constant_values=0
+    )
+    return padded_image
+
+def pad_dc_2d(image, kernel_height, kernel_width):
+    # Calculate the padding sizes
+    pad_height = kernel_height // 2
+    pad_width = kernel_width // 2
+
+    padded_image = np.pad(image,
+        ((pad_height, pad_height), (pad_width, pad_width)),
+        mode='edge'
+    )
+    return padded_image
+```
+
+The 2D convolution loops over both dimensions of the input image and applies the kernel to each region of the image. As in the 1D convolution, dot product is used to compute the convolution. Although, in this case, it's a dot product between two "vectorized" (flattened) matrices.
+
+```{python}
+
+def convolve2d(image, kernel, padding_type='zero'):
+    # Get the dimensions of the image and kernel
+    image_height, image_width = image.shape
+    kernel_height, kernel_width = kernel.shape
+
+    # Pad the image based on the padding type
+    if padding_type == 'zero':
+        padded_image = pad_zero_2d(image, kernel_height, kernel_width)
+    elif padding_type == 'dc':
+        padded_image = pad_dc_2d(image, kernel_height, kernel_width)
+    else:
+        raise ValueError("Invalid padding_type. Use 'zero' or 'dc'.")
+
+    # Calculate the output dimensions
+    output_height = image_height
+    output_width = image_width
+
+    # Initialize the output array
+    output = np.zeros((output_height, output_width))
+
+    # Perform the convolution
+    for i in range(output_height):
+        for j in range(output_width):
+            # Extract the region of interest from the padded image
+            region = padded_image[i:i+kernel_height, j:j+kernel_width]
+            # Perform element-wise multiplication and sum the results
+            output[i, j] = np.sum(region * kernel)
+
+    return output
+```
+
+Let's test the convolution on a small matrix and a kernel.
+
+```{python}
+# Create a simple 5x5 image
+image = np.arange(25).reshape(5, 5)
+
+# Create a simple 3x3 kernel
+kernel = np.array([
+    [1, 0, -1],
+    [1, 0, -1],
+    [1, 0, -1]
+])
+
+# Perform the convolution with zero padding
+result_zero = convolve2d(image, kernel, padding_type='zero')
+print("Convolved Image with Zero Padding:")
+print(result_zero)
+
+# Perform the convolution with dc padding
+result_dc = convolve2d(image, kernel, padding_type='dc')
+print("Convolved Image with DC Padding:")
+print(result_dc)
+```
+
+To use 2D convolution on image, we need to be able to load some images. For this we will use the `PIL` library.
+
+```{python}
+from PIL import Image
+import numpy as np
+import os
+
+def load_png_image(file_path, fixed_width=512):
+    # Open the image file
+    image = Image.open(file_path)
+    image = image.convert("L")
+
+    original_width, original_height = image.size
+    # Calculate the new height while maintaining the aspect ratio
+    new_height = int((fixed_width / original_width) * original_height)
+    # Resize the image
+    image = image.resize((fixed_width, new_height))
+    # Convert the image to a NumPy array
+    image_array = np.array(image)
+    return image_array
+```
+
+Now we can load an image and display it. The loading function also converts the image to gray-scale, since otherwise, we would have to deal with color channels. Additionally, it resizes the image, so that the convolution does not take to much time if the image is too large.
+
+```{python}
+# Load the image
+# image_file = os.path.join(os.path.dirname(__file__), 'bike.png')
+image_file = 'bike.png'
+image = load_png_image(image_file)
+
+# Display the image
+plt.imshow(image, cmap='gray')
+plt.title("Original image")
+plt.show()
+```
+
+Now, we are ready to test 2D convolution on the image.
+
+#### Sobel edge detection
+
+There are several different ways to compute edge detection on images. The specific algorithm/kernel depend on what is required. In this example, we will use the Sobel edge detection algorithm. Sobel kernels are directional - they detect horizontal or vertical edges - or rather horizontal or vertical **gradients** in the image, which corresponds with the direction perpendicular to the edge.
+
+```{python}
+# Define the Sobel kernels
+sobel_x = np.array([
+    [-1, 0, 1],
+    [-2, 0, 2],
+    [-1, 0, 1],
+])
+
+sobel_y = np.array([
+    [-1, -2, -1],
+    [ 0,  0,  0],
+    [ 1,  2,  1],
+])
+
+# Apply the Sobel kernels to the image
+sobel_x_result = convolve2d(image, sobel_x, padding_type='dc')
+sobel_y_result = convolve2d(image, sobel_y, padding_type='dc')
+
+plt.imshow(sobel_x_result, cmap='gray')
+plt.title("Sobel response in x-direction")
+plt.axis("off")
+plt.show()
+
+plt.imshow(sobel_y_result, cmap='gray')
+plt.title("Sobel response in y-direction")
+plt.axis("off")
+plt.show()
+
+edge_strength = np.sqrt(sobel_x_result**2 + sobel_y_result**2)
+
+plt.imshow(edge_strength, cmap='gray')
+plt.title("Gradient magnitude")
+plt.axis("off")
+plt.show()
+```
+
+#### Gaussian blur
+
+Much like for 1D signal smoothing, images can also be smoothed. Let's see an example using a Gaussian kernel.
+
+```{python}
+# Define the Gaussian kernel
+kernel_size = 11  # kernel size in both dimensions
+sigma = 3  # sigma for the Gaussian
+gaussian_kernel = np.zeros((kernel_size, kernel_size))
+# fill in the values for the Gaussian kernel
+for i in range(kernel_size):
+    for j in range(kernel_size):
+        x = i - kernel_size // 2
+        y = j - kernel_size // 2
+        gaussian_kernel[i, j] = (  # eq. for Gaussian
+            1 / (2 * np.pi * sigma**2)) * np.exp(-((x**2 + y**2) / (2 * sigma**2))
+        )
+
+# Alternative "vectorized" way of computing the Gaussian kernel
+# coords = np.arange(-(kernel_size // 2), kernel_size // 2 + 1)
+# xx, yy = np.meshgrid(coords, coords)
+# gaussian_kernel = np.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+# gaussian_kernel = gaussian_kernel / gaussian_kernel.sum()
+
+# apply the Gaussian blur to the image
+gaussian_result = convolve2d(image, gaussian_kernel, padding_type='dc')
+
+plt.imshow(gaussian_kernel, cmap='gray')
+plt.title("Gaussian kernel")
+plt.axis("off")
+plt.show()
+plt.imshow(gaussian_result, cmap='gray')
+plt.title("Gaussian blur")
+plt.axis("off")
+plt.show()
+```
+
+## Sparse matrices
+
+In some cases, there might be a need to represent and work with so-called **sparse** data. For example, edges in a weighted graph might be represented by a matrix, where a row $i$ and column $j$ represents the weight of the edge from node $i$ to node $j$ (e.g., current flowing from node $i$ to node $j$ in an electrical circuit, or the distance between node $i$ and node $j$). Another example would be a binary image (e.g., a typical result from edge or other types of detection). In both cases, the underlying data can be represented by a matrix. However, typically, the number of elements "of interest", i.e., elements with non-zero values, is much smaller than the total number of elements. That means, the matrix is **sparse** and, using "classical" 2D array, will consume a lot of "needless" memory. For example, a $9 \times 9$ matrix with the following values:
+
+|  |  |  |  |  |  |  |  |  |  |
+|-------|----------|-------|-------|-------|-------|-------|-------|-------|-------|
+|  | $\textbf{0}$ | $\textbf{1}$ | $\textbf{2}$ | $\textbf{3}$ | $\textbf{4}$ | $\textbf{5}$ | $\textbf{6}$ | $\textbf{7}$ | $\textbf{8}$ |
+| $\textbf{0}$ | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{1}$ | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{2}$ | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{3}$ | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{4}$ | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{5}$ | 0 | 0 | 0 | 6 | 0 | 7 | 0 | 0 | 0 |
+| $\textbf{6}$ | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| $\textbf{7}$ | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+| $\textbf{8}$ | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 12 |
+
+: Sparse matrix example
+
+In Python, we can store the data in a 2D array:
+
+```{python}
+import numpy as np
+
+# it's mostly zeros, let's initialize with zeros
+dense_matrix = np.zeros((9, 9))
+# and only "define" non-zero values
+dense_matrix[0, 1] = 5
+dense_matrix[2, 3] = 4
+dense_matrix[3, 1] = 2
+dense_matrix[5, 3] = 6
+dense_matrix[5, 5] = 7
+dense_matrix[7, 6] = 1
+dense_matrix[8, 8] = 12
+```
+
+There are a total of 9 \* 9 = 81 elements in the matrix. However, only 7 of them have non-zero values. if we consider the case where we would need to use 32-bit integers (4 bytes) to store the data (numbers between $-2^31$ and $2^31$), the matrix will consume 9 \* 9 \* 4 = 324 bytes, while storing only 7 \* 4 = 28 bytes "worth" of data. Roughly 300 extra bytes is not a big of a deal. However, imagine you have a database of 1 million people representing some kind of asymmetric transactions between them. If on average, each person "deals" with 100 other people and you need *only* 1 byte to store the data about a transaction, then all of the "interesting" data will require:
+
+$$
+    1,000,000~people \times 100~transactions \times 1~byte = 100,000,000~bytes \approx 100~MB
+$$
+
+However, the full matrix will have:
+
+$$
+    1,000,000~rows \times 1,000,000~columns \times 1~byte = 1,000,000,000,000~bytes \approx 1~TB
+$$
+
+That's quite a lot of storage space required to store mostly zeros. To deal with this, sparse-matrix representations are used. There are multiple different approaches, we will show two of them.
+
+### Coordinate list (COO)
+
+Perhaps the simplest way to store matrix data with mostly empty elements, is to store the indices of the non-zero elements, along with the corresponding values. E.g., considering the example from the table above, we would store the following:
+- `row`: the row indices,
+- `column`: the column indices.
+- `value`: the non-zero values,
+
+| row | column | value |
+|-----|--------|-------|
+| 0   | 1      | 5     |
+| 2   | 3      | 4     |
+| 3   | 1      | 2     |
+| 5   | 3      | 6     |
+| 5   | 5      | 7     |
+| 7   | 6      | 1     |
+| 8   | 8      | 12    |
+
+Representing the sparse matrix in this way is called "coordinate list" (COO).
+
+Let's make a function that would convert a dense matrix to COO:
+
+```{python}
+def dense_to_coo(matrix, empty_value=0):
+    """Convert a dense matrix to COO arrays."""
+    data = []  # here we will store our data
+    row_indices = []  # here we will store the row indices
+    col_indices = []  # here we will store the column indices
+    for row_index, dense_row in enumerate(matrix):  # iter over the rows
+        for col_index, value in enumerate(dense_row):  # iter over the items in a row
+            if value != empty_value:
+                data.append(value)
+                row_indices.append(row_index)
+                col_indices.append(col_index)
+    data = np.array(data, dtype=matrix.dtype)  # convert to match the input type
+    return data, row_indices, col_indices
+```
+
+Notice that the function also allow us to define what is considered as "non-zero" (or empty) value. In some cases, the "base" value need not be zero.
+
+Now, demonstrate the function on our example matrix:
+
+```{python}
+coo_data, coo_rows, coo_cols = dense_to_coo(dense_matrix)
+print(coo_data)
+print(coo_rows)
+print(coo_cols)
+```
+
+Now, let's create a simple Python class to store COO data and "attach" the function to it:
+
+```{python}
+class COO:
+    def __init__(self, dense_data, empty_value=0):
+        # not the nicest way of doing thins but it'll do
+        self.data, self.row, self.col = dense_to_coo(dense_data, empty_value)
+        # let's remember the shape of the original matrix
+        self.shape = dense_data.shape
+
+    def __repr__(self):
+        # just to have a nice print output
+        return f"COO(\n\tdata={self.data}\n\trow={self.row}\n\tcol={self.col}\n)"
+
+    @classmethod
+    def from_coo_arrays(cls, data, row, col, shape):
+        # create an empty COO object
+        c = cls(np.zeros(shape))
+        # attach the data
+        c.data = np.array(data)
+        c.row = row
+        c.col = col
+        return c
+
+    def to_dense(self):
+        # prepare the dense matrix
+        dense = np.zeros(shape=self.shape, dtype=self.data.dtype)
+        # reconstruct the dense matrix
+        for d, r, c in zip(self.data, self.row, self.col):
+            dense[r, c] = d
+        return dense
+```
+
+Let's test that the code works properly:
+
+```{python}
+coo = COO(dense_matrix)
+print(coo)
+print("COO to dense:\n", coo.to_dense())
+print("Dense matrix:\n", dense_matrix)
+```
+
+Obviously, in this representation, we need some extra memory to store the coordinates. The (required) data type of the coordinates depends on the size of the matrix. In this example, a byte is enough. Therefore, we would need $1B + 1B + 4B = 6B$ for each datapoint. In total, this will require $7 \times 6B = 42B$ of memory. For the large example above with the 1 million people, we have to use at least 32-bit integers. In that case, the total memory requirement would come to:
+
+$$
+    1,000,000~people \times 100~transactions \times \left(2 \times 4B + 1B\right) \approx 900~MB
+$$
+
+Still a decent saving. Of course, since there is some **memory overhead** required, it is not always the best choice. If we, for simplicity, consider both the coordinates and the data to be represented by the same data type, then COO is only **spatially effective** if the number of non-zero elements ($NNZ$) is at least 3 times smaller than the number of elements, i.e.:
+
+$$
+    NNZ < \frac{N \times N}{3}
+$$
+
+However, because of the extra **computational overhead**, it's best to reserve the use of sparse matrices for when $NNZ$ is much smaller than that and the overall matrix size is quite large. The specific values will depend on the specific use-case (e.g., what kind of operations are going to be performed on the matrix).
+
+### Operations on COO sparse matrices
+
+Some operations on sparse matrices, e.g., scalar multiplication, are quite straight-forward and provide apparent speedup: for an $M \times N$ matrix, only $NNZ$ multiplications need to be performed, instead of $M \times N$.
+
+However, other operations, like matrix multiplications are more complex to implement.
+
+```{python}
+def coo_matmul(sparse_A, sparse_B):
+    # Initialize the result data, row, and col arrays
+    result_data = []
+    result_row = []
+    result_col = []
+    result_shape = (sparse_A.shape[0], sparse_B.shape[1])
+
+    # The two outer loops for the result matrix items
+    for i in range(result_shape[0]):
+        for j in range(result_shape[1]):
+            # Initialize the sum for the current element
+            sum = 0
+            # The two inner loops iterate of the input matrices
+            # Iterate over NNZ of sparse_A in the current row
+            for k, (d, r, c) in enumerate(
+                zip(sparse_A.data, sparse_A.row, sparse_A.col)):
+                if r == i:
+                    # Iterate over NNZ of sparse_B in the current column
+                    for other_k, (other_d, other_r, other_c) in enumerate(
+                        zip(sparse_B.data, sparse_B.row, sparse_B.col)):
+                        if other_c == j and other_r == c:
+                            # Add the product to the sum
+                            sum += d * other_d
+            # If the sum is non-zero, add it to the result
+            if sum != 0:
+                result_data.append(sum)
+                result_row.append(i)
+                result_col.append(j)
+
+    result = COO.from_coo_arrays(result_data, result_row, result_col, result_shape)
+    return result
+```
+
+To test our methods, we need to create some sparse data. The following function generates a matrix with approximately $NNZ = n\_rows \times n\_cols \times fill\_rate$ non-zero elements.
+
+```{python}
+def make_sparse_data(n_rows, n_cols, fill_rate = 0.01):
+    # make a matrix with approx. fill_rate * 100 % of non-zero elements
+    if fill_rate * n_rows * n_cols < 1:
+        fill_rate = 1 / (n_rows * n_cols)  # at least 1 element
+    data = np.random.rand(n_rows, n_cols)
+    while data.min() > fill_rate:  # at least 1 element above fill_rate
+        data = np.random.rand(n_rows, n_cols)
+    data[data > fill_rate] = 0
+    return data
+```
+
+Now, we can test that the code works properly:
+
+```{python}
+N = 100
+# prepare the data
+A = make_sparse_data(N, N, 0.01)
+B = make_sparse_data(N, N, 0.01)
+# dense matrix multiplication
+C = A @ B
+
+A_sparse = COO(A)
+B_sparse = COO(B)
+# sparse matrix multiplication
+C_sparse = coo_matmul(A_sparse, B_sparse)
+
+C_densified = C_sparse.to_dense()
+
+print("Check if the results are equal:", np.allclose(C, C_densified))
+```
+
+Of course, runtime-wise, our four loop-based implementation is not going to beat the optimized, multi-threaded NumPy matrix multiplication, that is actually, implemented in C. Still, storage-wise, we are still saving some space.
+
+Speed comparison:
+
+```{python}
+%timeit -n 1 -r 1 coo_matmul(A_sparse, B_sparse)
+%timeit -n 1 -r 1 A @ B
+```
+
+Size comparison:
+
+```{python}
+import sys
+print(f"Size of A: {sys.getsizeof(A) / 1e6} MB")
+print("Size of A_sparse: "
+      f"{(sys.getsizeof(A_sparse.data) + sys.getsizeof(A_sparse.row) + sys.getsizeof(A_sparse.col)) / 1e6} MB")
+```
+
+Again, the size difference is going to be relevant for much larger matrices.
+
+Now, this is not the most efficient implementation. There are a few "speed-ups" that can be implemented. For example, we could make sure the indices are sorted and only "pick" the current row/column in the inner loops.
+
+### Compressed sparse rows (CSR)
+
+One representation of sparse matrices that allows for faster matrix multiplications (and other operations) is compressed sparse rows (CSR).
+
+CSR stores:
+- `values`: non-zero values,
+- `col_indices`: column index for each value,
+- `row_pointers`: where each row starts in the `values` array.
+
+It is similar to COO in that only the data and indices are stored. For CSR, the data and columns of each data point are stored in in exactly the same way as for COO. However, the row indices are not stored directly. Instead, only **pointers** to where each row starts are stored. For example, the following matrix:
+
+|     |     |     |
+|-----|-----|-----|
+| 1   | 0   | 2   |
+| 4   | 5   | 0   |
+| 0   | 0   | 0   |
+| 0   | 6   | 7   |
+
+Will be stored as:
+
+```{python}
+values = [1, 2, 4, 5, 6, 7]
+col_indices = [0, 2, 0, 1, 1, 2]
+row_pointers = [0, 2, 4, 4, 6]
+```
+
+The `row_pointers` indicate that row `0` starts at index `0` and row `1` starts at index `2`. This means that `values[0:2]` at `col_indices[0:2]` represent the data in the first row (row `0`). For empty rows, the `row_pointers` will be set to the index of the next row. E.g., row `2` in our example has index `4`, the same as row `3`, indicating, it's empty. The last value in row indices indicate the end of the last row. This is per-convention to make it clear whether the last row is empty or not.
+
+The advantage of this representation is that rows can be retrieved very quickly:
+
+```{python}
+def print_csr_row(values, col_indices, row_pointers, row = 1):
+    start = row_pointers[row]
+    end = row_pointers[row + 1]
+    print(f"Row {row}:")
+    print("Coumn indices:", col_indices[start:end])
+    print("Row values:", values[start:end])
+
+print_csr_row(values, col_indices, row_pointers)
+```
+
+This enables, for example, much more efficient matrix-vector multiplication..
+
+#### CSR in practice
+
+While it's nice to know the "inner workings" of sparse matrices, there are also off-the-shelf implementations available in Python.
+
+For the following example, the `SciPy` library is required (`pip install scipy`).
+
+```{python}
+import numpy as np
+from scipy.sparse import csr_matrix
+
+# Create two dense matrices
+N = 2000
+A = make_sparse_data(N, N, 0.01)
+B = make_sparse_data(N, N, 0.01)
+
+# Perform matrix multiplication using NumPy
+C = np.dot(A, B)
+
+# Create two sparse matrices
+A_sparse = csr_matrix(A)
+B_sparse = csr_matrix(B)
+
+# Perform matrix multiplication using SciPy
+C_sparse = A_sparse.dot(B_sparse)
+
+# Check if the results are equal
+print(np.allclose(C, C_sparse.toarray()))
+```
+
+```{python}
+print("Run time of dense matrix multiplication:")
+%timeit -n 1 -r 1 np.dot(A, B)
+print("Run time of sparse matrix multiplication:")
+%timeit -n 1 -r 1 A_sparse.dot(B_sparse)
+```

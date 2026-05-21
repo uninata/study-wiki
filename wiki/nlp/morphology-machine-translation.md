@@ -4,9 +4,9 @@
 
 **Course**: nlp
 
-**Sources**: 06-morphology.pdf, nlp/Rich Vocabulary - MT Talks.md
+**Sources**: 06-morphology.pdf, nlp/Rich Vocabulary - MT Talks.md, 01-eval.pdf
 
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-21
 
 ---
 
@@ -310,7 +310,7 @@ mladou  (young, feminine accusative singular)
 |---------|-------------|-------------|
 | Compounding | Compound splitting | Complex synthesis |
 | Inflection | Lemmatization / stems | Morphological generator |
-| Evaluation | Surface BLEU insufficient | Use morpheme-level BLEU or TER |
+| Evaluation | Surface BLEU insufficient | Use lemma/deep-lemma signals, character-level metrics such as chrF, post-edited references, or manual evaluation (source: nlp/01-eval.pdf) |
 
 ---
 

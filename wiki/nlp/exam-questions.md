@@ -4,9 +4,9 @@
 
 **Course**: nlp
 
-**Sources**: Statistical Machine Translation _ ÚFAL_exam_questions.pdf
+**Sources**: Statistical Machine Translation _ ÚFAL_exam_questions.pdf, 01-eval.pdf
 
-**Last updated**: 2026-05-02
+**Last updated**: 2026-05-21
 
 ---
 
@@ -428,7 +428,7 @@ Why does BLEU perform poorly when evaluating Czech? There are at least two reaso
 - BLEU penalizes synonymous morphological forms (not in reference)
 - Reason 1: morphological variation not captured by n-gram match
 - Reason 2: flexible word order (Czech allows SOV, SVO) causes reordering that BLEU penalizes
-- Solution: use morphology-aware metrics (METEOR), manual evaluation
+- Solution: use morphology-aware evaluation signals such as lemma/deep-lemma matching, chrF-style character metrics, post-edited references, or manual evaluation (source: nlp/01-eval.pdf)
 
 **Resources**: [[nlp/morphology-machine-translation]]
 
@@ -468,9 +468,9 @@ Suggest 3 different **manual** MT evaluation techniques and highlight their resp
    - Pro: diagnostic, actionable feedback
    - Con: time-consuming, requires expertise
 
-5. **TER (Translation Edit Rate)**: Count edits needed to fix translation
-   - Pro: interpretable, supports partial credit
-   - Con: assumes single reference, labor-intensive
+5. **Comprehension or task-based tests**: Ask whether users can answer questions or complete a task using the translation
+   - Pro: closer to real utility than surface overlap
+   - Con: expensive to design and can be domain-specific
 
 **Resources**: [[nlp/machine-translation-evaluation]]
 
@@ -655,7 +655,7 @@ What problem does attention in neural MT address? Provide the key idea of the me
 
 ## Related pages
 
-- [[nlp/machine-translation-evaluation]] — BLEU, METEOR, TER metrics (Questions 8)
+- [[nlp/machine-translation-evaluation]] — Manual MT evaluation, BLEU caveats, confidence intervals, and LLM judges (Question 8)
 - [[nlp/smt-foundations]] — Foundational concepts (Questions 1-7, 9)
 - [[nlp/word-alignment]] — Alignment algorithms (Question 2)
 - [[nlp/phrase-based-machine-translation]] — Phrase extraction and decoding (Questions 3, 8)
